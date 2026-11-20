@@ -2,5 +2,9 @@
   "files.autoSave": "afterDelay",
   "files.autoSaveDelay": 1400,
   "python.analysis.extraPaths": ["."],
-  "files.exclude": {"**/__pycache__": true, "**/.pio": true}
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.pio": true
+  },
+  "python.terminal.useEnvFile": true
 }
