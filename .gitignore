@@ -1,0 +1,32 @@
+# Credentials, never push these files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.*
+
+# Local logs, data and generated artifacts
+data/logs/
+*.log
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# PlatformIO local build output
+.pio/
+
+# OS and editor machine-specific state
+.DS_Store
+Thumbs.db
+.vscode/*.log
+
+# Generated or backup files
+*.tmp
+*.bak
+
+# Local-only assistant/development instructions (not needed in public repo)
+AGENTS.md
+docs/GitHub VS Code Codex Guide.md
