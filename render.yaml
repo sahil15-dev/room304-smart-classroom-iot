@@ -15,4 +15,10 @@ services:
         sync: false
       - key: THINGSPEAK_READ_KEY
         sync: false
-      # Optional: configure DASHBOARD_ACCESS_PASSWORD in Render's Environment.
+      # The hosted dashboard refuses access until both credentials are configured.
+      - key: DASHBOARD_REQUIRE_AUTH
+        value: 'true'
+      - key: DASHBOARD_ACCESS_USERNAME
+        sync: false
+      - key: DASHBOARD_ACCESS_PASSWORD
+        sync: false

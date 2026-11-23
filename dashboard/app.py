@@ -43,15 +43,40 @@ def data_source() -> str:
 
 @app.before_request
 def optional_password_gate():
-    """Optional simple access control for an internet-facing classroom demo."""
+    """Restrict sensor pages and APIs with HTTP Basic authentication.
+
+    In hosted mode DASHBOARD_REQUIRE_AUTH=true fails closed if either
+    credential is missing. Local development needs no login by default.
+    """
     if request.path == '/api/health':
+        # Non-sensitive endpoint for the hosting provider's health checks.
         return None
+
+    username = os.getenv('DASHBOARD_ACCESS_USERNAME', '').strip()
     password = os.getenv('DASHBOARD_ACCESS_PASSWORD', '')
-    if password:
-        supplied = request.authorization.password if request.authorization else ''
-        if not hmac.compare_digest(supplied or '', password):
-            return make_response(('Dashboard access required', 401,
-                                  {'WWW-Authenticate': 'Basic realm="Smart Classroom Sentinel"'}))
+    mandatory = os.getenv('DASHBOARD_REQUIRE_AUTH', '').strip().lower() in ('1', 'true', 'yes')
+
+    if mandatory and (not username or not password):
+        return make_response(('Private dashboard credentials are not configured.', 503,
+                              {'Cache-Control': 'no-store'}))
+    if not password and not username:
+        return None  # Local development only. Render sets REQUIRE_AUTH=true.
+    if not password:
+        return make_response(('Dashboard password is not configured.', 503,
+                              {'Cache-Control': 'no-store'}))
+
+    # Backwards compatibility for a local password-only setup. The deployed
+    # Render service must have both variables explicitly configured.
+    expected_username = username or 'viewer'
+    authorization = request.authorization
+    received_username = authorization.username if authorization else ''
+    received_password = authorization.password if authorization else ''
+    correct_username = hmac.compare_digest(received_username or '', expected_username)
+    correct_password = hmac.compare_digest(received_password or '', password)
+    if not (correct_username and correct_password):
+        return make_response(('Dashboard login required', 401,
+                              {'WWW-Authenticate': 'Basic realm="Smart Classroom Sentinel"',
+                               'Cache-Control': 'no-store'}))
     return None
 
 
@@ -163,6 +188,20 @@ def cloud_feed(force: bool = False) -> dict:
 @app.get('/')
 def index():
     return render_template('index.html')
+
+
+@app.get('/api/me')
+def current_user():
+    """Return the identity verified by HTTP Basic auth; never return secrets.
+
+    before_request has already authenticated hosted requests. An open local
+    dashboard has no verified login, so it is explicitly labeled Local access.
+    """
+    username = os.getenv('DASHBOARD_ACCESS_USERNAME', '').strip()
+    password = os.getenv('DASHBOARD_ACCESS_PASSWORD', '')
+    if username or password:
+        return jsonify({'username': username or 'viewer', 'authenticated': True})
+    return jsonify({'username': 'Local access', 'authenticated': False})
 
 
 @app.get('/api/live')

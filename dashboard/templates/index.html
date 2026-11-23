@@ -81,6 +81,25 @@ main{grid-column:2;min-width:0;padding:0 34px 44px;max-width:1380px;width:100%;m
 .crumb{display:flex;align-items:center;gap:10px;font-size:14px}
 .crumb .sep{color:var(--dim)}
 .top-right{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:flex-end}
+/* ---------- authenticated-user menu (top right; no backend controls) ---------- */
+.account-wrap{position:relative;flex-shrink:0}
+.account-btn{display:flex;align-items:center;gap:9px;min-height:36px;max-width:210px;padding:4px 11px 4px 5px;
+  border-radius:12px;border:1px solid var(--line2);background:var(--surface);color:var(--text);
+  cursor:pointer;font-size:12.5px;font-weight:700;transition:border-color .15s,background .15s}
+.account-btn:hover,.account-btn[aria-expanded="true"]{border-color:var(--accent);background:var(--surface2)}
+.account-avatar{display:grid;place-items:center;width:28px;height:28px;border-radius:9px;flex-shrink:0;
+  background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:800}
+.account-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.account-chevron{color:var(--muted);font-size:11px;margin-left:2px}
+.account-menu{position:absolute;right:0;top:calc(100% + 9px);z-index:60;min-width:260px;max-width:min(320px,calc(100vw - 30px));
+  padding:17px;border:1px solid var(--line2);border-radius:15px;background:var(--surface);
+  color:var(--text);box-shadow:0 17px 36px -14px rgba(0,0,0,.45)}
+.account-menu-label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.account-menu-name{font:700 17px/1.4 var(--display);margin-top:5px;overflow-wrap:anywhere}
+.account-menu-foot{display:flex;align-items:center;gap:7px;margin-top:14px;padding-top:12px;
+  border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.account-menu-dot{width:8px;height:8px;flex-shrink:0;border-radius:50%;background:var(--ok)}
+@media(max-width:620px){.account-btn{max-width:132px}.top-right{gap:7px}}
 .lastsample{font-size:13px;display:flex;align-items:baseline;gap:8px}
 .lastsample b{font-variant-numeric:tabular-nums;font-weight:700}
 .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:999px;font-weight:700;font-size:12.5px;
@@ -324,7 +343,7 @@ html,body{overflow-x:hidden;overflow-y:auto}
     <button data-act="goto" data-view="test"><span data-ico="flask"></span>Test &amp; calibrate</button>
     <button data-act="goto" data-view="history"><span data-ico="table"></span>Data history</button>
   </nav>
-  <div class="side-foot">Local monitoring · Optional online view</div>
+  <div class="side-foot">Private local dashboard</div>
   <div class="pipeline" id="pipeline" aria-label="Current data connections"></div>
 </aside>
 
@@ -335,6 +354,19 @@ html,body{overflow-x:hidden;overflow-y:auto}
       <div class="lastsample"><span class="muted">Last sample</span><b id="lastTime">–</b><span class="muted" id="lastAge"></span></div>
       <span class="pill" id="livePill" data-tone="warn"><i class="dot"></i><span id="liveText">Connecting</span></span>
       <button class="icon-btn" data-act="theme" id="themeBtn" aria-label="Switch between dark and light theme"></button>
+      <div class="account-wrap" id="accountWrap">
+        <button class="account-btn" type="button" id="userMenuButton" aria-haspopup="true" aria-expanded="false" aria-controls="userMenu" aria-label="Open user menu">
+          <span class="account-avatar" id="userAvatar" aria-hidden="true">?</span>
+          <span class="account-name" id="userDisplayName">Account</span>
+          <span class="account-chevron" aria-hidden="true">⌄</span>
+        </button>
+        <div class="account-menu" id="userMenu" hidden>
+          <div class="account-menu-label" id="userMenuHeading">Signed in as</div>
+          <div class="account-menu-name" id="userMenuName">Account</div>
+          <div class="account-menu-foot"><span class="account-menu-dot" aria-hidden="true"></span><span id="userAccessMode">Private dashboard access</span></div>
+        </div>
+      </div>
+
     </div>
   </header>
 
@@ -475,7 +507,7 @@ html,body{overflow-x:hidden;overflow-y:auto}
         <div><h2>Latest recorded sensor values</h2><div class="card-note" id="histSub" style="margin-top:2px"></div></div>
         <div class="tools">
           <select class="sel" id="rowSel" aria-label="Rows shown"><option value="20" selected>Last 20 rows</option><option value="50">Last 50 rows</option><option value="100">Last 100 rows</option><option value="200">Last 200 rows</option><option value="480">Last 480 rows</option></select>
-          <button class="btn primary" data-act="csv"><span data-ico="download" data-size="16"></span>Download readings CSV</button>
+          <button class="btn primary" data-act="csv"><span data-ico="download" data-size="16"></span>Download full CSV</button>
           <button class="btn" data-act="refresh"><span data-ico="refresh" data-size="16"></span>Refresh</button>
         </div>
       </div>
@@ -485,11 +517,11 @@ html,body{overflow-x:hidden;overflow-y:auto}
           <tbody id="rows"></tbody>
         </table>
       </div>
-      <p class="card-note" style="margin-top:14px;font-size:12.5px">Local mode exports the complete laptop CSV. Hosted mode exports the latest available ThingSpeak readings (up to 800). This website cannot switch modes or operate the Arduino.</p>
+      <p class="card-note" style="margin-top:14px;font-size:12.5px">The CSV download includes every locally recorded sample, not only the rows shown. This site cannot switch modes or operate the Arduino.</p>
     </div>
   </section>
 
-  <footer class="foot"><span>Room 304 • Real sensor data • Read-only monitoring</span><span id="footTime"></span></footer>
+  <footer class="foot"><span>Room 304 • Real hardware data • Read-only local monitoring</span><span id="footTime"></span></footer>
 </main>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -549,7 +581,7 @@ const ico = (n, sz = 18) => `<svg class="ico" width="${sz}" height="${sz}" viewB
 /* ---------- state ---------- */
 const T = CONFIG.targets;
 const S = {
-   samples: [], mode: 'connecting', source: 'local', fetchErr: false,
+   samples: [], mode: 'connecting', fetchErr: false,
    view: 'overview', metric: 'temp', win: 120, histRows: 20,
    cloud: { state: 'idle' }
 };
@@ -596,7 +628,7 @@ const METRICS = {
    if (!response.ok) throw new Error('Live API HTTP ' + response.status);
    const payload = await response.json();
    S.samples = (payload.history || []).map(normaliseSample).filter(x => x.t).slice(-CONFIG.maxKeep);
-   S.mode = 'live'; S.source = payload.source === 'cloud' ? 'cloud' : 'local'; S.fetchErr = false;
+   S.mode = 'live'; S.fetchErr = false;
  }
  async function fetchCloud() {
    try {
@@ -632,13 +664,11 @@ const METRICS = {
  function liveState() {
    const L = last();
    if (S.fetchErr) return { tone: 'bad', text: 'Data feed unavailable' };
-   if (!L) return { tone: 'warn', text: S.source === 'cloud' ? 'Waiting for ThingSpeak' : 'Waiting for Arduino' };
+   if (!L) return { tone: 'warn', text: 'Waiting for Arduino' };
    const age = (Date.now() - L.t.getTime()) / 1000;
-   if (age < -5) return {tone:'warn', text:'Check sensor timestamp'};
-   const limit = S.source === 'cloud' ? 90 : CONFIG.staleAfterSec;
-   if (age <= limit) return { tone: 'ok', text: S.source === 'cloud' ? 'Recent cloud data' : 'Live, recent data' };
-   if (age <= 300) return { tone: 'warn', text: 'Delayed sensor data' };
-   return { tone: 'bad', text: 'No recent sensor data' };
+   if (age <= CONFIG.staleAfterSec) return { tone: 'ok', text: 'Live, recent data' };
+   if (age <= 120) return { tone: 'warn', text: 'Delayed data' };
+   return { tone: 'bad', text: 'No recent data' };
  }
 
 function alertInfo(code) {
@@ -685,8 +715,8 @@ const rangeOf = k => { const v = S.samples.map(d => d[k]).filter(x => x != null)
    const cloudTone = {ok:'ok',stale:'warn',unconfigured:'warn',error:'bad',idle:'info'}[S.cloud.state] || 'warn';
    const cloudSub = {ok:'Recent cloud history',stale:'Cloud readings delayed',unconfigured:'Not configured',error:'Unavailable',idle:'Checking'}[S.cloud.state] || 'Checking';
    const steps = [
-     { name:'Arduino UNO',sub: L ? 'Last reported reading' : 'Waiting for readings',tone:live.tone },
-     { name:'Python bridge',sub: S.source === 'cloud' ? 'Last cloud upload' : S.fetchErr ? 'Dashboard API unreachable' : L ? 'Local CSV logging' : 'No samples yet',tone:live.tone },
+     { name:'Arduino UNO',sub: L ? 'Reported sensor readings' : 'Waiting for sensors',tone:live.tone },
+     { name:'Python bridge',sub: S.fetchErr ? 'Dashboard API unreachable' : L ? 'Local CSV logging' : 'No samples yet',tone:live.tone },
      { name:'ThingSpeak',sub:cloudSub,tone:cloudTone }
    ];
    $('#pipeline').innerHTML = '<div class="pl-title">Data pipeline</div>' +
@@ -818,7 +848,7 @@ function renderCloud() {
     : `<p class="card-note">Cloud channel: ${safe(c.channel || '–')}</p>
        <div class="stats2"><div class="stat"><span>Recent cloud points</span><b>${c.count ?? '–'}</b></div>
        <div class="stat"><span>Last uploaded sample</span><b>${c.last ? fmtTime(c.last) : '–'}</b></div></div>
-       <p class="card-note" style="font-size:12.5px">ThingSpeak stores cloud history. Local-mode readings also remain in the laptop CSV; hosted mode uses cloud readings only.</p>`;
+       <p class="card-note" style="font-size:12.5px">ThingSpeak stores cloud history. Recent local readings remain available even if the internet is offline.</p>`;
   $('#cloudCard').innerHTML = `<div class="card-head"><h2>ThingSpeak cloud</h2><span class="chip" data-tone="${tone}">${txt}</span></div>${body}
     <div class="btn-row"><button class="btn" data-act="refreshCloud"><span>${ico('refresh', 16)}</span>Refresh cloud</button>
     <button class="btn" data-act="goto" data-view="history"><span>${ico('table', 16)}</span>View history</button></div>`;
@@ -994,7 +1024,7 @@ function renderHistory() {
   const chipA = v => { if (v == null) return '–'; const a = alertInfo(v); return `<span class="chip" data-tone="${a.tone}">${v} ${a.label}</span>`; };   $('#rows').innerHTML = rows.length ? rows.map(d => {
     const tw = d.temp != null && (d.temp < T.temp[0] || d.temp > T.temp[1]), hw = d.hum != null && (d.hum < T.hum[0] || d.hum > T.hum[1]);
     return `<tr><td class="t">${fmtTime(d.t)}</td><td class="${tw ? 'warn' : ''}">${fmt(d.temp, 1)}</td><td class="${hw ? 'warn' : ''}">${fmt(d.hum, 1)}</td><td>${fmt(d.light, 0)}</td><td>${fmt(d.sound, 0)}</td><td>${chipD(d.door)}</td><td>${chipE(d.empty)}</td><td>${chipA(d.alert)}</td></tr>`;   }).join('') : '<tr><td colspan="8" class="empty">No logged readings yet. Start the Python bridge.</td></tr>';
-   $('#histSub').textContent = `Most recent ${rows.length} rows from ${S.source === 'cloud' ? 'ThingSpeak history' : 'your local CSV'} · scroll inside the table to see more`;
+   $('#histSub').textContent = `Most recent ${rows.length} rows from your local CSV · scroll inside the table to see more`;
   const win = S.samples.slice(-S.histRows);
   const st = (k, d, label, color) => {
     const v = win.map(x => x[k]).filter(x => x != null);
@@ -1047,10 +1077,43 @@ async function copyText(t) {
     const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (_) {} ta.remove();
   }
 }
+/* Account is read from the protected Flask endpoint, never from localStorage or a hard-coded name. */
+async function loadUserIdentity() {
+  const btn = $('#userMenuButton');
+  try {
+    const response = await fetch('/api/me', {cache:'no-store',credentials:'same-origin'});
+    if (!response.ok) throw new Error('Identity request failed');
+    const user = await response.json();
+    const name = String(user.username || 'Local access');
+    $('#userDisplayName').textContent = name;
+    $('#userMenuName').textContent = name;
+    $('#userAvatar').textContent = name.charAt(0).toUpperCase();
+    $('#userMenuHeading').textContent = user.authenticated ? 'Signed in as' : 'Current session';
+    $('#userAccessMode').textContent = user.authenticated ? 'Password-protected access' : 'Local development access';
+    btn.setAttribute('aria-label', 'User menu for ' + name);
+  } catch (_) {
+    $('#userDisplayName').textContent = 'Account';
+    $('#userMenuName').textContent = 'Identity unavailable';
+    $('#userMenuHeading').textContent = 'Current session';
+    $('#userAccessMode').textContent = 'Unable to verify account status';
+  }
+}
+function closeUserMenu() {
+  $('#userMenu').hidden = true;
+  $('#userMenuButton').setAttribute('aria-expanded', 'false');
+}
+
 function setTheme(t) { document.documentElement.dataset.theme = t; store.set('sentinel.theme', t); $('#themeBtn').innerHTML = ico(t === 'dark' ? 'sun' : 'moon', 18); drawChart(); }
 const stamp = () => { const d = new Date(), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`; };
 
 document.addEventListener('click', async e => {
+  if (e.target.closest('#userMenuButton')) {
+    const menu = $('#userMenu');
+    menu.hidden = !menu.hidden;
+    $('#userMenuButton').setAttribute('aria-expanded', String(!menu.hidden));
+    return;
+  }
+  if (!e.target.closest('#userMenu')) closeUserMenu();
   const cap = e.target.closest('[data-cap]');
   if (cap) return capture(cap.dataset.cap, cap.dataset.label);
   const row = e.target.closest('.test');
@@ -1064,7 +1127,7 @@ document.addEventListener('click', async e => {
     case 'theme': setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'); break;
     case 'refresh': await poll(); toast('Data refreshed'); break;
     case 'refreshCloud': await fetchCloud(); toast('Cloud status updated'); break;
-    case 'csv': window.location.href = CONFIG.exportUrl; toast(S.source === 'cloud' ? 'Downloading available cloud readings' : 'Downloading complete local CSV'); break;
+    case 'csv': window.location.href = CONFIG.exportUrl; toast('Downloading complete local CSV'); break;
     case 'export': download(`room304-test-report-${stamp()}.txt`, buildReport()); toast('Test report exported'); break;
     case 'copyvals': await copyText(valuesText()); toast('Current values copied'); break;
 
@@ -1078,12 +1141,14 @@ $('#winSel').addEventListener('change', e => { S.win = +e.target.value; drawChar
 $('#rowSel').addEventListener('change', e => { S.histRows = +e.target.value; renderHistory(); });
 $('#notes').addEventListener('input', e => store.set('sentinel.notes', e.target.value));
 window.addEventListener('hashchange', () => go(location.hash.slice(1)));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeUserMenu(); });
 let rz; new ResizeObserver(() => { cancelAnimationFrame(rz); rz = requestAnimationFrame(drawChart); }).observe($('#chart'));
 
 /* ---------- boot ---------- */
 (async function init() {
   $$('[data-ico]').forEach(el => el.innerHTML = ico(el.dataset.ico, +el.dataset.size || 18));
   setTheme(store.get('sentinel.theme', 'dark'));
+  await loadUserIdentity();
   $('#notes').value = store.get('sentinel.notes', '');
   buildDesks(); buildChecklist(); renderCloud();   try { await loadCSV(); } catch (e) { S.mode = 'live'; S.fetchErr = true; }
   go(location.hash.slice(1));
