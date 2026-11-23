@@ -1,6 +1,7 @@
 """Run: python -m unittest discover -s tests -v"""
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 import unittest
 
 from bridge.protocol import parse_serial_line, thingspeak_fields, alert_message
@@ -42,13 +43,43 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(fields['field8'], 0)
         self.assertEqual(len(fields), 8)
 
-    def test_telegram_normal_is_none(self):
+    def test_normal_alert_has_no_message(self):
         r = parse_serial_line('DATA,24,50,500,3,0,0,0,0')
         self.assertIsNone(alert_message(r))
 
     def test_alert_message_mentions_type(self):
         r = parse_serial_line('DATA,24,50,900,3,0,1,2,0')
         self.assertIn('unnecessary classroom lighting', alert_message(r))
+
+
+    def test_discord_optional_no_config_no_calls(self):
+        r = parse_serial_line('DATA,21.3,25.0,4,8,1,1,1,0')
+        with tempfile.TemporaryDirectory() as tmp, patch('bridge.runner.post_discord') as send:
+            Monitor(Path(tmp) / 'readings.csv').handle(r, now=0)
+            send.assert_not_called()
+
+    def test_discord_alert_transition_cooldown(self):
+        warning = parse_serial_line('DATA,21.3,25.0,4,8,1,1,1,0')
+        normal = parse_serial_line('DATA,21.3,50.0,4,8,1,1,0,0')
+        with tempfile.TemporaryDirectory() as tmp, patch('bridge.runner.post_discord') as send:
+            monitor = Monitor(Path(tmp) / 'readings.csv', discord_webhook='https://example.test/webhook')
+            monitor.handle(warning, now=0)
+            monitor.handle(warning, now=10)
+            self.assertEqual(send.call_count, 1)
+            monitor.handle(warning, now=301)
+            self.assertEqual(send.call_count, 2)
+            monitor.handle(normal, now=310)
+            monitor.handle(warning, now=320)
+            self.assertEqual(send.call_count, 3)
+
+    def test_thingspeak_20s_upload_interval(self):
+        reading = parse_serial_line('DATA,21.3,25.0,4,8,1,1,1,0')
+        with tempfile.TemporaryDirectory() as tmp, patch('bridge.runner.post_thingspeak') as send:
+            monitor = Monitor(Path(tmp) / 'readings.csv', write_key='fakekey')
+            monitor.handle(reading, now=0)
+            monitor.handle(reading, now=5)
+            monitor.handle(reading, now=20)
+            self.assertEqual(send.call_count, 2)
 
     def test_offline_log(self):
         r = parse_serial_line('DATA,24,50,900,3,0,1,2,0')

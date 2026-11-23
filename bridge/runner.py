@@ -1,4 +1,4 @@
-"""USB Serial -> CSV logging -> optional ThingSpeak and Telegram.
+"""USB Serial -> CSV logging -> optional ThingSpeak and Discord webhook alerts.
 
 Run: python -m bridge.runner
 Demo (no hardware/network): python -m bridge.runner --simulate
@@ -59,26 +59,23 @@ def post_thingspeak(reading: Reading, write_key: str) -> None:
     print('ThingSpeak upload successful')
 
 
-def post_telegram(reading: Reading, token: str, chat_id: str) -> None:
+def post_discord(reading: Reading, webhook_url: str) -> None:
+    """Send an OPTIONAL Discord message. Keep webhook URL secret."""
     import requests
     message = alert_message(reading)
     if message is None:
         return
-    response = requests.post(f'https://api.telegram.org/bot{token}/sendMessage',
-                             json={'chat_id': chat_id, 'text': message}, timeout=12)
+    response = requests.post(webhook_url, json={'content': message}, timeout=12)
     response.raise_for_status()
-    if not response.json().get('ok', False):
-        raise ValueError('Telegram did not accept alert message')
-    print('Telegram warning sent')
+    print('Discord warning sent')
 
 
 class Monitor:
-    def __init__(self, log_path: Path, write_key: str = '', token: str = '', chat_id: str = '',
+    def __init__(self, log_path: Path, write_key: str = '', discord_webhook: str = '',
                  cloud_interval_s: float = 20.0, alert_cooldown_s: float = 300.0):
         self.log_path = log_path
         self.write_key = write_key
-        self.token = token
-        self.chat_id = chat_id
+        self.discord_webhook = discord_webhook
         self.cloud_interval_s = max(cloud_interval_s, 20.0)
         self.alert_cooldown_s = alert_cooldown_s
         self.last_cloud_attempt = float('-inf')
@@ -99,19 +96,19 @@ class Monitor:
                 print('ThingSpeak failed:', type(error).__name__, str(error)[:140], file=sys.stderr)
         if reading.alert_code == 0:
             self.previous_alert = None
-        elif self.token and self.chat_id and (reading.alert_code != self.previous_alert or
+        elif self.discord_webhook and (reading.alert_code != self.previous_alert or
                now - self.last_alert_sent >= self.alert_cooldown_s):
             try:
-                post_telegram(reading, self.token, self.chat_id)
+                post_discord(reading, self.discord_webhook)
                 self.previous_alert = reading.alert_code
                 self.last_alert_sent = now
             except Exception as error:
-                # Never print the token or the raw URL, which contains it.
-                print('Telegram failed:', type(error).__name__, file=sys.stderr)
+                # Never print the webhook URL, because it is a credential.
+                print('Discord failed:', type(error).__name__, file=sys.stderr)
 
 
 def simulate() -> None:
-    print('OFFLINE DEMO: no Arduino, ThingSpeak, or Telegram required.')
+    print('OFFLINE DEMO: no Arduino, ThingSpeak, or Discord required.')
     monitor = Monitor(ROOT / 'data' / 'logs' / 'simulated readings.csv')
     for line in [
         'INFO,Room304 ready; PIR disabled',
@@ -142,8 +139,7 @@ def run_serial() -> int:
         return 2
     monitor = Monitor(ROOT / 'data' / 'logs' / 'room304 readings.csv',
                       os.getenv('THINGSPEAK_WRITE_KEY', '').strip(),
-                      os.getenv('TELEGRAM_BOT_TOKEN', '').strip(),
-                      os.getenv('TELEGRAM_CHAT_ID', '').strip())
+                      os.getenv('DISCORD_WEBHOOK_URL', '').strip())
     print(f'Connecting to Arduino on {port} at {baud} baud. Close Arduino Serial Monitor first.')
     try:
         with serial.Serial(port, baudrate=baud, timeout=3) as device:

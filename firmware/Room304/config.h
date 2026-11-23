@@ -35,7 +35,8 @@ const unsigned long BUTTON_DEBOUNCE_MS = 50UL;
 
 // Starting values ONLY. Calibrate using recorded classroom readings.
 const int LIGHT_BRIGHT_THRESHOLD = 700;
-const int SOUND_ACTIVITY_THRESHOLD = 60;  // Relative 35 ms analog peak span.
+const unsigned long SOUND_WINDOW_MS = 250UL;  // Non-blocking microphone windows.
+const int SOUND_ACTIVITY_THRESHOLD = 60;  // Calibrate from actual quiet vs loud spans.
 const float TEMP_MIN_C = 18.0;
 const float TEMP_MAX_C = 28.0;
 const float HUM_MIN_PERCENT = 30.0;

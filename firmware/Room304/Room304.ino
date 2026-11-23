@@ -20,6 +20,14 @@ bool previousReedRaw = HIGH;
 bool buzzerOn = false;
 int previousAlertCode = 0;
 
+// Non-blocking microphone sampling. Each short window measures the analog
+// peak-to-peak amplitude; the report outputs the LARGEST window since the
+// previous DATA line. This avoids missing a clap between 2.5-second reports.
+int soundWindowLow = 1023;
+int soundWindowHigh = 0;
+int soundPeakSinceReport = 0;
+unsigned long soundWindowStartMs = 0;
+
 bool buttonPressed(bool raw) {
   return BUTTON_PRESSED_IS_LOW ? raw == LOW : raw == HIGH;
 }
@@ -44,15 +52,21 @@ void setBuzzer(bool active) {
   buzzerOn = active;
 }
 
-int sampleSoundSpan() {
-  int low = 1023, high = 0;
-  unsigned long beginMs = millis();
-  while (millis() - beginMs < 35UL) {
-    int v = analogRead(PIN_SOUND);
-    if (v < low) low = v;
-    if (v > high) high = v;
+void updateSoundSampling(unsigned long nowMs) {
+  // Called continuously during loop(), not only during DATA reports.
+  int value = analogRead(PIN_SOUND);
+  if (value < soundWindowLow) soundWindowLow = value;
+  if (value > soundWindowHigh) soundWindowHigh = value;
+
+  if (nowMs - soundWindowStartMs >= SOUND_WINDOW_MS) {
+    int span = soundWindowHigh - soundWindowLow;
+    if (span > soundPeakSinceReport) soundPeakSinceReport = span;
+    // Capture actual sound activity promptly for the lighting-alert timer.
+    if (span > SOUND_ACTIVITY_THRESHOLD) lastActivityMs = nowMs;
+    soundWindowLow = 1023;
+    soundWindowHigh = 0;
+    soundWindowStartMs = nowMs;
   }
-  return high - low;
 }
 
 void updateButton(unsigned long nowMs) {
@@ -105,6 +119,7 @@ void setup() {
   previousReedRaw = digitalRead(PIN_REED);
   lastReportMs = millis();
   lastActivityMs = millis();
+  soundWindowStartMs = millis();
   Serial.println(F("INFO,Room304 ready; PIR disabled"));
   Serial.println(F("INFO,DATA,temp,humidity,light,sound_span,door_open,expected_empty,alert,pir"));
 }
@@ -112,6 +127,7 @@ void setup() {
 void loop() {
   unsigned long nowMs = millis();
   updateButton(nowMs);
+  updateSoundSampling(nowMs);
   // Unblock the buzzer promptly between DHT readings.
   if (buzzerOn && (long)(nowMs - buzzerOffAtMs) >= 0) setBuzzer(false);
   if (nowMs - lastReportMs < REPORT_INTERVAL_MS) return;
@@ -120,12 +136,13 @@ void loop() {
   float temp = dht.readTemperature();
   float humidity = dht.readHumidity();
   int light = analogRead(PIN_LIGHT);
-  int sound = sampleSoundSpan();
+  int sound = soundPeakSinceReport;
+  soundPeakSinceReport = 0;
   bool reedRaw = digitalRead(PIN_REED);
   bool doorOpen = doorIsOpen(reedRaw);
   bool pirMotion = ENABLE_PIR ? digitalRead(PIN_PIR) == HIGH : false;
 
-  if (reedRaw != previousReedRaw || sound > SOUND_ACTIVITY_THRESHOLD || pirMotion) {
+  if (reedRaw != previousReedRaw || pirMotion) {
     lastActivityMs = nowMs;
   }
   previousReedRaw = reedRaw;
