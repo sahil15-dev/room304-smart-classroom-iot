@@ -25,7 +25,7 @@ const bool BUTTON_PRESSED_IS_LOW = true;
 const bool REED_CLOSED_IS_LOW = true;
 const bool RGB_COMMON_ANODE = false;
 const bool BUZZER_ACTIVE_LOW = false;
-const bool LIGHT_BRIGHT_IS_HIGH = true;  // Verify with flashlight and cover tests.
+const bool LIGHT_BRIGHT_IS_HIGH = false;  // Verify with flashlight and cover tests.
 
 const unsigned long REPORT_INTERVAL_MS = 2500UL;
 const unsigned long QUIET_PERIOD_MS = 1800000UL;  // 30 minutes; test with 30000UL.

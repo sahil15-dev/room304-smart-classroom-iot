@@ -1,0 +1,3 @@
+Flask>=3.0,<4
+# Used only by the hosted Python web server, not for Arduino serial access.
+gunicorn>=22,<24; sys_platform != "win32"

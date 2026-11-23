@@ -153,7 +153,6 @@ void loop() {
   bool lightingAlert = expectedEmpty && roomIsBright(light) &&
                        (nowMs - lastActivityMs >= QUIET_PERIOD_MS);
   int alert = sensorFault ? 3 : (lightingAlert ? 2 : (comfortAlert ? 1 : 0));
-
   if (alert == 0) setRgb(false, true, false);       // green
   else if (alert == 1) setRgb(false, false, true);  // blue
   else setRgb(true, false, false);                  // red

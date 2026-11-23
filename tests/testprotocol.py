@@ -52,25 +52,12 @@ class ProtocolTests(unittest.TestCase):
         self.assertIn('unnecessary classroom lighting', alert_message(r))
 
 
-    def test_discord_optional_no_config_no_calls(self):
-        r = parse_serial_line('DATA,21.3,25.0,4,8,1,1,1,0')
-        with tempfile.TemporaryDirectory() as tmp, patch('bridge.runner.post_discord') as send:
-            Monitor(Path(tmp) / 'readings.csv').handle(r, now=0)
+    def test_cloud_upload_is_optional_without_a_write_key(self):
+        sample = parse_serial_line('DATA,21.3,25.0,4,8,1,1,1,0')
+        with tempfile.TemporaryDirectory() as tmp, patch('bridge.runner.post_thingspeak') as send:
+            monitor = Monitor(Path(tmp) / 'readings.csv')
+            monitor.handle(sample, now=0)
             send.assert_not_called()
-
-    def test_discord_alert_transition_cooldown(self):
-        warning = parse_serial_line('DATA,21.3,25.0,4,8,1,1,1,0')
-        normal = parse_serial_line('DATA,21.3,50.0,4,8,1,1,0,0')
-        with tempfile.TemporaryDirectory() as tmp, patch('bridge.runner.post_discord') as send:
-            monitor = Monitor(Path(tmp) / 'readings.csv', discord_webhook='https://example.test/webhook')
-            monitor.handle(warning, now=0)
-            monitor.handle(warning, now=10)
-            self.assertEqual(send.call_count, 1)
-            monitor.handle(warning, now=301)
-            self.assertEqual(send.call_count, 2)
-            monitor.handle(normal, now=310)
-            monitor.handle(warning, now=320)
-            self.assertEqual(send.call_count, 3)
 
     def test_thingspeak_20s_upload_interval(self):
         reading = parse_serial_line('DATA,21.3,25.0,4,8,1,1,1,0')

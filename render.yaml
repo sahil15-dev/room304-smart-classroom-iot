@@ -1,0 +1,18 @@
+# Managed by Render Blueprint; dashboard uses cloud history only, never COM3.
+services:
+  - type: web
+    name: smart-classroom-sentinel
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt -r dashboard/requirements.txt
+    startCommand: gunicorn dashboard.app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: DASHBOARD_DATA_SOURCE
+        value: cloud
+      - key: THINGSPEAK_CHANNEL_ID
+        sync: false
+      - key: THINGSPEAK_READ_KEY
+        sync: false
+      # Optional: configure DASHBOARD_ACCESS_PASSWORD in Render's Environment.

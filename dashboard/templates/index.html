@@ -1,0 +1,1098 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Room 304 | Smart Classroom Sentinel</title>
+<!-- Fonts load when online; the dashboard falls back to system fonts when offline. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0f1e; --bg2:#0d1428;
+  --surface:#111a30; --surface2:#16213b; --surface3:#1c2a49;
+  --line:rgba(160,180,215,.12); --line2:rgba(160,180,215,.22);
+  --text:#eaf0fb; --muted:#93a3c0; --dim:#667795;
+  --accent:#3ee0c8; --accent-ink:#04211d; --accent-soft:rgba(62,224,200,.12);
+  --ok:#3dd6a0; --warn:#f5b942; --bad:#f4715f; --info:#6aa8ff;
+  --c-temp:#ff9a4d; --c-hum:#4cc3f5; --c-light:#f6d04d; --c-sound:#b494ff;
+  --shadow:0 1px 0 rgba(255,255,255,.035) inset,0 18px 40px -22px rgba(0,0,0,.7);
+  --display:"Sora","Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --body:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  color-scheme:dark;
+}
+:root[data-theme="light"]{
+  /* Warm ivory interface with dark navy navigation and schematic. */
+  --bg:#e8e1d6; --bg2:#e1d9ca;
+  --surface:#f7f3ea; --surface2:#eee7db; --surface3:#e4dccd;
+  --line:rgba(43,53,64,.11); --line2:rgba(43,53,64,.20);
+  --text:#202b38; --muted:#5d6875; --dim:#7d8691;
+  --accent:#087f76; --accent-ink:#ffffff; --accent-soft:rgba(8,127,118,.12);
+  --ok:#008b68; --warn:#a86d08; --bad:#cc4738; --info:#266db5;
+  --c-temp:#c46a39; --c-hum:#187ea8; --c-light:#bf8d20; --c-sound:#8058bd;
+  --shadow:0 1px 1px rgba(40,36,29,.04),0 18px 38px -29px rgba(34,42,49,.32);
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 var(--body);-webkit-font-smoothing:antialiased;min-height:100vh}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+   radial-gradient(900px 520px at 88% -8%,color-mix(in srgb,var(--accent) 11%,transparent),transparent 62%),
+   radial-gradient(760px 520px at -8% 38%,color-mix(in srgb,var(--info) 9%,transparent),transparent 62%)}
+h1,h2,h3,p{margin:0}
+button{font:inherit;color:inherit}
+.ico{display:block;flex:none}
+.muted{color:var(--muted)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+
+/* ---------- layout ---------- */
+.app{position:relative;z-index:1;display:grid;grid-template-columns:256px minmax(0,1fr);min-height:100vh}
+.sidebar{position:fixed;inset:0 auto 0 0;width:256px;height:100vh;height:100dvh;min-height:0;overflow-y:hidden;overscroll-behavior:auto;z-index:25;padding:24px 16px 16px;display:flex;flex-direction:column;gap:22px;
+  color:var(--text);border-right:1px solid var(--line);background:linear-gradient(180deg,#101a2d 0%,#111d31 65%,#152339 100%);backdrop-filter:blur(14px)}
+.brand{display:flex;align-items:center;gap:13px;padding:4px 4px 18px;border-bottom:1px solid rgba(190,207,230,.12)}
+.logo{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;flex:none;font:700 16px var(--display);letter-spacing:-.02em;
+  color:#052f2c;background:linear-gradient(145deg,#65e1d3,#22b6b9);
+  box-shadow:0 8px 22px -12px rgba(58,220,204,.6),inset 0 1px 0 rgba(255,255,255,.36)}
+.brand-name{font:700 15px/1.32 var(--display);letter-spacing:-.02em;color:#f3f6fa}
+.brand-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.nav{display:flex;flex-direction:column;gap:4px}
+.nav button{display:flex;align-items:center;gap:12px;width:100%;padding:12px 13px;border-radius:11px;border:1px solid transparent;
+  background:none;color:var(--muted);font-weight:600;font-size:13.5px;cursor:pointer;text-align:left;transition:background .15s,color .15s,border-color .15s}
+.nav button:hover{background:var(--surface2);color:var(--text)}
+.nav button[aria-current="page"]{background:var(--accent-soft);color:var(--text);border-color:color-mix(in srgb,var(--accent) 28%,transparent)}
+.nav button[aria-current="page"] .ico{color:var(--accent)}
+.pipeline{margin-top:auto;flex-shrink:0;position:sticky;bottom:0;z-index:2;padding:16px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:0 -12px 24px -18px rgba(0,0,0,.7)}
+.pl-title{font-weight:700;font-size:13px;margin-bottom:12px}
+.pl-step{position:relative;display:flex;gap:12px;padding-bottom:14px}
+.pl-step:last-child{padding-bottom:0}
+.pl-step:not(:last-child)::before{content:"";position:absolute;left:4px;top:14px;bottom:-2px;width:2px;background:var(--line2);border-radius:2px}
+.pl-dot{width:10px;height:10px;margin-top:5px;border-radius:50%;background:var(--tone,var(--dim));box-shadow:0 0 0 3px color-mix(in srgb,var(--tone,var(--dim)) 22%,transparent);flex:none;position:relative;z-index:1}
+.pl-name{font-weight:600;font-size:13px;line-height:1.3}
+.pl-sub{font-size:12px;color:var(--muted)}
+.side-foot{padding:0 6px;font-size:12px;color:var(--dim);margin-top:8px}
+[data-tone="ok"]{--tone:var(--ok)}[data-tone="warn"]{--tone:var(--warn)}[data-tone="bad"]{--tone:var(--bad)}[data-tone="info"]{--tone:var(--info)}
+
+main{grid-column:2;min-width:0;padding:0 34px 44px;max-width:1380px;width:100%;margin:0 auto}
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 0;
+  background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop-filter:blur(16px);border-bottom:1px solid var(--line);margin:0 -34px 28px;padding-left:34px;padding-right:34px}
+.crumb{display:flex;align-items:center;gap:10px;font-size:14px}
+.crumb .sep{color:var(--dim)}
+.top-right{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:flex-end}
+.lastsample{font-size:13px;display:flex;align-items:baseline;gap:8px}
+.lastsample b{font-variant-numeric:tabular-nums;font-weight:700}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:999px;font-weight:700;font-size:12.5px;
+  color:var(--tone,var(--ok));background:color-mix(in srgb,var(--tone,var(--ok)) 12%,transparent);border:1px solid color-mix(in srgb,var(--tone,var(--ok)) 34%,transparent)}
+.pill .dot{width:8px;height:8px;border-radius:50%;background:var(--tone,var(--ok));animation:pulse 2.2s ease-out infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--tone,var(--ok)) 55%,transparent)}80%,100%{box-shadow:0 0 0 8px transparent}}
+.icon-btn{width:36px;height:36px;display:grid;place-items:center;border-radius:11px;background:var(--surface2);border:1px solid var(--line2);color:var(--muted);cursor:pointer}
+.icon-btn:hover{color:var(--text)}
+.demobar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:-12px 0 22px;padding:11px 16px;border-radius:14px;font-size:13px;
+  background:color-mix(in srgb,var(--warn) 11%,transparent);border:1px solid color-mix(in srgb,var(--warn) 32%,transparent)}
+.demobar code{background:var(--surface3);padding:1px 7px;border-radius:6px;font-size:12px}
+.demobar .grow{flex:1}
+
+/* ---------- shared pieces ---------- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:22px}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.card-head h2{font:600 17px/1.3 var(--display);letter-spacing:-.01em}
+.card-note{font-size:13px;color:var(--muted)}
+.grid{display:grid;gap:18px}
+.stack{display:flex;flex-direction:column;gap:18px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;
+  color:var(--tone,var(--muted));background:color-mix(in srgb,var(--tone,var(--muted)) 13%,transparent)}
+.chip.plain{color:var(--muted);background:var(--surface2);border:1px solid var(--line);font-weight:600}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:11px;border:1px solid var(--line2);background:var(--surface2);
+  color:var(--text);font-weight:700;font-size:13px;cursor:pointer;transition:transform .12s,background .15s,border-color .15s}
+.btn:hover{background:var(--surface3);border-color:color-mix(in srgb,var(--accent) 40%,var(--line2))}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.btn.primary:hover{background:color-mix(in srgb,var(--accent) 88%,#fff)}
+.btn.sm{padding:5px 11px;font-size:12px;border-radius:9px}
+select.sel{appearance:none;padding:8px 34px 8px 13px;border-radius:11px;border:1px solid var(--line2);color:var(--text);font-weight:600;font-size:13px;cursor:pointer;
+  background:var(--surface2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%2393a3c0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 12px center}
+.seg{display:inline-flex;padding:3px;border-radius:12px;background:var(--surface2);border:1px solid var(--line);gap:2px;flex-wrap:wrap}
+.seg button{display:flex;align-items:center;gap:7px;padding:6px 12px;border-radius:9px;border:0;background:none;color:var(--muted);font-weight:700;font-size:12.5px;cursor:pointer}
+.seg button i{width:8px;height:8px;border-radius:50%;background:var(--c)}
+.seg button[aria-pressed="true"]{background:var(--surface3);color:var(--text);box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 2px 8px -3px rgba(0,0,0,.5)}
+.empty{padding:30px 10px;text-align:center;color:var(--muted);font-size:13.5px}
+.page-head{margin-bottom:24px}
+.page-head h1{font:700 34px/1.15 var(--display);letter-spacing:-.025em}
+.page-head p{color:var(--muted);margin-top:6px;font-size:15px}
+
+/* The light-theme canvas is warm, but the fixed sidebar and classroom drawing
+   intentionally retain their deep-navy surfaces in both themes. */
+:root[data-theme="light"] .sidebar {
+  --surface:#19263d; --surface2:#20304a; --surface3:#2a3e58;
+  --line:rgba(184,207,234,.15); --line2:rgba(184,207,234,.25);
+  --text:#f4f7fb; --muted:#b9c7d9; --dim:#8d9fba;
+  --accent:#4ed9c9; --accent-ink:#08322e; --accent-soft:rgba(78,217,201,.13);
+  --ok:#40d5a7; --warn:#f1bb60; --bad:#f47a6b; --info:#79b0fb;
+}
+:root[data-theme="light"] .hero {background:linear-gradient(120deg,#f7f1e5 0%,#f1eadf 100%)}
+:root[data-theme="light"] .topbar {background:color-mix(in srgb,var(--bg) 92%,transparent)}
+:root[data-theme="light"] #plan {
+  --surface:#111a30; --surface2:#16213b; --surface3:#1c2a49;
+  --line:rgba(160,180,215,.12); --line2:rgba(160,180,215,.22);
+  --text:#eaf0fb; --muted:#aab8d0; --dim:#8f9db7;
+  --accent:#3ee0c8; --accent-ink:#04211d;
+  --ok:#3dd6a0; --info:#6aa8ff; --c-light:#f6d04d;
+  --c-sound:#b494ff; --c-hum:#4cc3f5;
+}
+
+/* ---------- stepped but softly animated light cone ---------- */
+#planCone{transition:opacity 950ms ease-in-out}
+/* ---------- hero ---------- */
+.hero{position:relative;overflow:hidden;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:26px;padding:30px;margin-bottom:18px;align-items:center}
+.hero::before{content:"";position:absolute;left:-120px;top:-140px;width:420px;height:420px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(closest-side,color-mix(in srgb,var(--tone,var(--ok)) 20%,transparent),transparent)}
+.hero-copy{position:relative}
+.hero h1{font:700 40px/1.1 var(--display);letter-spacing:-.03em;margin-top:8px}
+.eyebrow{font-size:13px;font-weight:600;color:var(--accent)}
+.lede{color:var(--muted);margin-top:10px;font-size:15px;max-width:42ch}
+.status{display:flex;align-items:center;gap:16px;margin-top:26px;padding:16px 18px;border-radius:16px;
+  background:color-mix(in srgb,var(--tone,var(--ok)) 10%,var(--surface));border:1px solid color-mix(in srgb,var(--tone,var(--ok)) 32%,transparent)}
+.status-ico{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;flex:none;color:var(--tone);background:color-mix(in srgb,var(--tone) 16%,transparent)}
+.status-title{font:600 17px/1.3 var(--display)}
+.status-sub{font-size:13px;color:var(--muted);margin-top:2px}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.legend .chip{padding:5px 11px}
+.legend i{width:8px;height:8px;border-radius:50%;background:var(--c,var(--dim))}
+.plan-wrap{margin:0;position:relative}
+.plan-wrap svg{width:100%;height:auto;display:block;border-radius:16px}
+.plan-wrap figcaption{font-size:12px;color:var(--dim);margin-top:8px;text-align:center}
+.pl-label{font:700 10.5px var(--body);fill:var(--muted)}
+.pl-label.dim{fill:var(--dim)}
+
+/* ---------- kpi ---------- */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin-bottom:18px}
+.kpi{position:relative;overflow:hidden;padding:20px 20px 18px}
+.kpi::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--c)}
+.kpi-head{display:flex;justify-content:space-between;align-items:center}
+.kpi-label{font-size:14px;font-weight:700;color:var(--muted)}
+.kpi-ico{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 15%,transparent);color:var(--c)}
+.kpi-row{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-top:14px}
+.kpi-val{display:flex;align-items:baseline;gap:6px;font:700 44px/1 var(--display);letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+.kpi-val small{font:600 14px var(--body);letter-spacing:0;color:var(--muted)}
+.spark{width:88px;height:40px;flex:none}
+.meter{position:relative;height:8px;border-radius:99px;background:color-mix(in srgb,var(--text) 9%,transparent);margin-top:20px}
+.meter .band{position:absolute;top:0;bottom:0;border-radius:99px;background:color-mix(in srgb,var(--ok) 38%,transparent)}
+.meter .fill{position:absolute;top:0;bottom:0;left:0;border-radius:99px;background:linear-gradient(90deg,color-mix(in srgb,var(--c) 30%,transparent),var(--c))}
+.meter .dot{position:absolute;top:50%;width:14px;height:14px;border-radius:50%;background:var(--surface);border:3px solid var(--c);transform:translate(-50%,-50%);box-shadow:0 2px 8px rgba(0,0,0,.35)}
+.meter-scale{display:flex;justify-content:space-between;font-size:11.5px;color:var(--dim);margin-top:7px;font-variant-numeric:tabular-nums}
+.kpi-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;flex-wrap:wrap}
+.kpi-foot .cap{font-size:12px;color:var(--muted)}
+
+/* ---------- trend + devices ---------- */
+.g-main{grid-template-columns:minmax(0,1.9fr) minmax(0,1fr);margin-bottom:18px}
+.tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.chart{position:relative;width:100%;min-height:290px}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart .tip{position:absolute;pointer-events:none;opacity:0;transform:translate(-50%,-115%);background:var(--surface3);border:1px solid var(--line2);
+  padding:7px 11px;border-radius:11px;font-size:12px;white-space:nowrap;box-shadow:0 10px 24px -10px rgba(0,0,0,.6);transition:opacity .1s}
+.chart .tip b{display:block;font:700 15px var(--display);font-variant-numeric:tabular-nums}
+.chart .tip span{color:var(--muted)}
+.trend-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+.tstat{padding:10px 14px;border-radius:12px;background:var(--surface2);border:1px solid var(--line)}
+.tstat span{display:block;font-size:12px;color:var(--muted)}
+.tstat b{font:700 17px var(--display);font-variant-numeric:tabular-nums}
+.trend-foot{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--dim);margin-top:12px;flex-wrap:wrap}
+.dev{display:grid;grid-template-columns:40px minmax(0,1fr);gap:2px 14px;align-items:center;padding:15px 0;border-top:1px solid var(--line)}
+.dev .dev-ico{grid-row:1 / span 2}
+.dev-state{grid-column:2}
+.dev:first-of-type{border-top:0;padding-top:4px}
+.dev-ico{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--tone,var(--muted));background:color-mix(in srgb,var(--tone,var(--muted)) 13%,transparent)}
+.dev-name{font-weight:700}
+.dev-meta{font-size:12.5px;color:var(--muted)}
+.dev-state{font-weight:700;font-size:13.5px;margin-top:6px;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px}
+.dev-note{font-size:12px;color:var(--muted);font-weight:500}
+.dev.off{opacity:.62}
+.dev.off .dev-ico{border:1.5px dashed var(--line2);background:none}
+
+/* ---------- events + cloud ---------- */
+.g-bottom{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.evlist{list-style:none;margin:0;padding:0}
+.ev{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.ev:first-child{border-top:0;padding-top:2px}
+.ev-ico{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;color:var(--tone,var(--muted));background:color-mix(in srgb,var(--tone,var(--muted)) 13%,transparent)}
+.ev-title{font-weight:700;font-size:13.5px}
+.ev-sub{font-size:12.5px;color:var(--muted)}
+.ev time{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.stats2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
+.stat{padding:14px 16px;border-radius:13px;background:var(--surface2);border:1px solid var(--line)}
+.stat span{display:block;font-size:12.5px;color:var(--muted)}
+.stat b{font:700 24px/1.3 var(--display);font-variant-numeric:tabular-nums}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+
+/* ---------- test page ---------- */
+.g-test{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr)}
+.prog{display:flex;align-items:center;gap:18px;margin-bottom:18px;padding:16px;border-radius:14px;background:var(--surface2);border:1px solid var(--line)}
+.prog b{font:700 20px var(--display)}
+.prog span{display:block;font-size:13px;color:var(--muted)}
+.test{display:grid;grid-template-columns:30px minmax(0,1fr);gap:14px;padding:16px;border-radius:14px;border:1px solid var(--line);background:var(--surface2);margin-bottom:10px;transition:border-color .15s,background .15s}
+.test.done{border-color:color-mix(in srgb,var(--ok) 38%,transparent);background:color-mix(in srgb,var(--ok) 7%,var(--surface2))}
+.chk{width:26px;height:26px;border-radius:8px;border:2px solid var(--line2);background:var(--surface);display:grid;place-items:center;cursor:pointer;color:transparent;padding:0}
+.chk:hover{border-color:var(--accent)}
+.test.done .chk{background:var(--ok);border-color:var(--ok);color:#04150f}
+.test-title{font-weight:700;font-size:14.5px;cursor:pointer;width:max-content;max-width:100%}
+.test-desc{font-size:13px;color:var(--muted);margin-top:2px}
+.test-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:11px}
+.evid{font-size:12px;color:var(--muted);padding:3px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-variant-numeric:tabular-nums}
+.test-foot{font-size:12.5px;color:var(--dim);margin-top:6px}
+.diag{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line);font-size:13.5px}
+.diag:first-of-type{border-top:0}
+.diag b{display:inline-flex;align-items:center;gap:8px;font-weight:700;text-align:right}
+.diag b i{width:8px;height:8px;border-radius:50%;background:var(--tone,var(--dim))}
+.live4{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.live4 .tile{padding:12px 14px;border-radius:13px;background:var(--surface2);border:1px solid var(--line);position:relative;overflow:hidden}
+.tile span{font-size:12.5px;color:var(--muted);font-weight:600}
+.tile b{display:block;font:700 26px/1.2 var(--display);font-variant-numeric:tabular-nums;color:var(--c)}
+.tile .spark{position:absolute;right:8px;bottom:8px;width:70px;height:28px;opacity:.9}
+textarea.notes{width:100%;min-height:150px;resize:vertical;padding:14px;border-radius:13px;border:1px solid var(--line2);background:var(--surface2);color:var(--text);font:13.5px/1.55 var(--body)}
+textarea.notes::placeholder{color:var(--dim)}
+.callout{padding:13px 15px;border-radius:13px;background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 25%,transparent);font-size:12.5px;color:var(--muted);margin-top:14px}
+
+/* ---------- history ---------- */
+.hstats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}
+.hs{padding:16px 18px;border-radius:16px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--c)}
+.hs h3{font-size:13px;color:var(--muted);font-weight:700}
+.hs .rng{display:flex;gap:16px;margin-top:8px}
+.hs .rng div span{display:block;font-size:11.5px;color:var(--dim)}
+.hs .rng div b{font:700 17px var(--display);font-variant-numeric:tabular-nums}
+.tbl-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px;max-height:640px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;min-width:720px}
+th{position:sticky;top:0;z-index:1;background:var(--surface3);text-align:left;font-size:12.5px;color:var(--muted);padding:12px 16px;font-weight:700;white-space:nowrap}
+td{padding:11px 16px;border-top:1px solid var(--line);font-size:13.5px;white-space:nowrap}
+tbody tr:hover{background:var(--surface2)}
+tbody tr:first-child td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+td.t{font-weight:700}
+td.warn{color:var(--warn);font-weight:700}
+.foot{margin-top:30px;padding-top:18px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--dim)}
+.toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);opacity:0;padding:11px 18px;border-radius:12px;background:var(--surface3);border:1px solid var(--line2);
+  font-weight:700;font-size:13px;box-shadow:0 14px 34px -12px rgba(0,0,0,.6);transition:all .25s;z-index:100;pointer-events:none}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* Ensure both the full page and long verification / history panels remain scrollable.
+   The test checklist has its own scroll region on desktop, and uses normal page
+   scrolling on phones.  Table header stays visible inside the history scroll. */
+html,body{overflow-x:hidden;overflow-y:auto}
+.view{min-width:0}
+#view-test .g-test{align-items:start}
+#tests{max-height:min(69vh,760px);min-height:160px;overflow-y:auto;padding-right:8px;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+#view-history .tbl-wrap{height:min(60vh,650px);min-height:270px;overflow:auto;scrollbar-width:thin;scrollbar-color:var(--line2) transparent;overscroll-behavior:contain}
+#view-history table{min-width:870px}
+#view-history thead th{position:sticky;top:0;z-index:3}
+@media(max-width:900px) {
+  #tests {max-height:none;overflow:visible;padding-right:0}
+}
+/* ---------- responsive ---------- */
+@media (max-width:1180px){
+  .kpis,.hstats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .g-main,.g-bottom,.g-test{grid-template-columns:minmax(0,1fr)}
+  .hero{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:900px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .sidebar{position:static;inset:auto;width:auto;height:auto;overflow:visible;flex-direction:row;align-items:center;flex-wrap:wrap;gap:12px;padding:14px 18px;border-right:0;border-bottom:1px solid var(--line)}
+  .pipeline,.side-foot,.brand-sub{display:none}
+  .nav{flex-direction:row;overflow:auto;flex:1}
+  .nav button{width:auto;white-space:nowrap}
+  main{grid-column:1;padding:0 18px 36px}
+  .topbar{margin:0 -18px 22px;padding-left:18px;padding-right:18px;position:static}
+}
+@media (max-width:620px){
+  .kpis,.hstats,.stats2,.trend-stats{grid-template-columns:minmax(0,1fr)}
+  .trend-stats{grid-template-columns:1fr 1fr}
+  .hero{padding:22px}.hero h1,.page-head h1{font-size:30px}
+  .lastsample{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+
+<aside class="sidebar">
+  <div class="brand">
+    <div class="logo">304</div>
+    <div><div class="brand-name">Smart Classroom Sentinel</div></div>
+  </div>
+  <nav class="nav" aria-label="Sections">
+    <button data-act="goto" data-view="overview"><span data-ico="grid"></span>Overview</button>
+    <button data-act="goto" data-view="test"><span data-ico="flask"></span>Test &amp; calibrate</button>
+    <button data-act="goto" data-view="history"><span data-ico="table"></span>Data history</button>
+  </nav>
+  <div class="side-foot">Local monitoring · Optional online view</div>
+  <div class="pipeline" id="pipeline" aria-label="Current data connections"></div>
+</aside>
+
+<main>
+  <header class="topbar">
+    <div class="crumb"><span class="muted">Room 304</span><span class="sep">/</span><b id="crumb">Overview</b></div>
+    <div class="top-right">
+      <div class="lastsample"><span class="muted">Last sample</span><b id="lastTime">–</b><span class="muted" id="lastAge"></span></div>
+      <span class="pill" id="livePill" data-tone="warn"><i class="dot"></i><span id="liveText">Connecting</span></span>
+      <button class="icon-btn" data-act="theme" id="themeBtn" aria-label="Switch between dark and light theme"></button>
+    </div>
+  </header>
+
+  <div class="demobar" id="demoBar" hidden></div>
+
+  <!-- ================= OVERVIEW ================= -->
+  <section class="view" id="view-overview">
+    <div class="hero card" id="hero" data-tone="ok">
+      <div class="hero-copy">
+        <div class="eyebrow">Room 304 environment monitor</div>
+        <h1>Classroom overview</h1>
+        <p class="lede">Live sensor readings, classroom status and cloud sync in one place.</p>
+        <div class="status">
+          <span class="status-ico" id="heroIco"></span>
+          <div><div class="status-title" id="heroState">Normal conditions</div><div class="status-sub" id="heroDetail"></div></div>
+        </div>
+        <div class="legend" id="heroLegend"></div>
+      </div>
+      <figure class="plan-wrap">
+        <svg id="plan" viewBox="0 0 520 330" role="img" aria-label="Schematic floor plan of Room 304 showing the Arduino UNO, sensor hub, mini reed, mode button, RGB LED and desks">
+          <defs>
+            <pattern id="pgrid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" style="stroke:var(--line)" stroke-width="1"/></pattern>
+            <linearGradient id="cone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--c-light);stop-opacity:.6"/><stop offset="1" style="stop-color:var(--c-light);stop-opacity:0"/></linearGradient>
+          </defs>
+          <rect x="0" y="0" width="520" height="330" rx="16" style="fill:var(--surface2)"/>
+          <rect id="planRoom" x="20" y="22" width="480" height="286" rx="14" style="fill:var(--surface);stroke:var(--ok)" stroke-width="2.5"/>
+          <rect x="20" y="22" width="480" height="286" rx="14" fill="url(#pgrid)"/>
+          <!-- light cone from hub -->
+          <polygon id="planCone" points="244,42 276,42 410,250 110,250" fill="url(#cone)" opacity="0"/>
+          <!-- sound ripples -->
+          <g id="planSound" fill="none" style="stroke:var(--c-sound)" stroke-width="2">
+            <circle cx="260" cy="42" r="34" opacity=".2"/><circle cx="260" cy="42" r="58" opacity=".14"/><circle cx="260" cy="42" r="84" opacity=".08"/>
+          </g>
+          <!-- desks -->
+          <g id="planDesks"></g>
+          <!-- hub -->
+          <rect x="224" y="12" width="72" height="30" rx="9" style="fill:var(--accent)"/>
+          <text x="260" y="31" text-anchor="middle" font-weight="800" font-size="11" style="fill:var(--accent-ink);font-family:var(--body)">UNO</text>
+          <text x="260" y="62" text-anchor="middle" class="pl-label">Sensor hub</text>
+          <!-- door -->
+          <line x1="20" y1="230" x2="20" y2="276" style="stroke:var(--surface)" stroke-width="6"/>
+          <path id="planArc" d="M20 230 A46 46 0 0 1 66 276" fill="none" style="stroke:var(--line2)" stroke-dasharray="3 4" stroke-width="1.5"/>
+          <line id="planDoor" x1="20" y1="276" x2="20" y2="230" style="stroke:var(--info)" stroke-width="4" stroke-linecap="round" transform="rotate(0 20 276)"/>
+          <circle cx="20" cy="276" r="3.5" style="fill:var(--text)"/>
+          <text x="34" y="298" class="pl-label">Door reed, D3</text>
+          <!-- mode button -->
+          <rect x="12" y="138" width="16" height="24" rx="5" style="fill:var(--c-hum)"/>
+          <text x="36" y="154" class="pl-label">Mode button, D4</text>
+          <!-- PIR -->
+          <circle cx="500" cy="78" r="9" fill="none" style="stroke:var(--dim)" stroke-width="2" stroke-dasharray="3 3"/>
+          <text x="484" y="82" text-anchor="end" class="pl-label dim">PIR, D7 (not installed)</text>
+          <!-- LED -->
+          <g id="planLed" style="color:var(--ok)">
+            <circle cx="500" cy="262" r="24" fill="currentColor" opacity=".28" style="filter:blur(7px)"/>
+            <circle cx="500" cy="262" r="8" fill="currentColor"/>
+          </g>
+          <text x="498" y="296" text-anchor="end" class="pl-label">RGB LED and buzzer</text>
+        </svg>
+        <figcaption>Illustrative schematic, not the actual room layout. Seat colors reflect the button mode, not measured occupancy.</figcaption>
+      </figure>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="grid g-main">
+      <div class="card" id="trendCard">
+        <div class="card-head">
+          <h2>Sensor trend</h2>
+          <div class="tools">
+            <div class="seg" id="metricSeg" role="group" aria-label="Metric">
+              <button data-metric="temp" style="--c:var(--c-temp)" aria-pressed="true"><i></i>Temperature</button>
+              <button data-metric="hum" style="--c:var(--c-hum)" aria-pressed="false"><i></i>Humidity</button>
+              <button data-metric="light" style="--c:var(--c-light)" aria-pressed="false"><i></i>Light</button>
+              <button data-metric="sound" style="--c:var(--c-sound)" aria-pressed="false"><i></i>Sound</button>
+            </div>
+            <select class="sel" id="winSel" aria-label="Samples shown">
+              <option value="60">60 samples</option><option value="120" selected>120 samples</option>
+              <option value="240">240 samples</option><option value="480">480 samples</option>
+            </select>
+          </div>
+        </div>
+        <div class="chart" id="chart"></div>
+        <div class="trend-stats" id="trendStats"></div>
+        <div class="trend-foot"><span id="trendFoot"></span><span id="trendRefresh"></span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Classroom status</h2><span class="chip plain">Arduino UNO</span></div>
+        <div id="devices"></div>
+      </div>
+    </div>
+
+    <div class="grid g-bottom">
+      <div class="card">
+        <div class="card-head"><h2>Recent events</h2><span class="chip plain">From the local sensor log</span></div>
+        <div id="events"></div>
+      </div>
+      <div class="card" id="cloudCard"></div>
+    </div>
+  </section>
+
+  <!-- ================= TEST ================= -->
+  <section class="view" id="view-test" hidden>
+    <div class="page-head"><h1>Test &amp; calibrate</h1><p>Practical verification for the Room 304 hardware.</p></div>
+    <div class="grid g-test">
+      <div class="card">
+        <div class="card-head"><h2>Classroom verification checklist</h2><span class="chip plain">Manual sign-off</span></div>
+        <p class="card-note" style="margin-bottom:16px">Tick a test only after you have personally verified the actual hardware response. Your ticks and notes stay in this browser, not on the Arduino.</p>
+        <div class="prog" id="prog"></div>
+        <div id="tests"></div>
+        <p class="test-foot">The PIR sensor is intentionally left out. The reed switch test can be finished later with a magnet.</p>
+      </div>
+      <div class="stack">
+        <div class="card"><div class="card-head"><h2>Live readings</h2><span class="chip plain">Updates every 3 seconds</span></div><div class="live4" id="live4"></div></div>
+        <div class="card"><div class="card-head"><h2>Live diagnostics</h2><span class="chip plain">Read-only</span></div><div id="diag"></div>
+          <div class="callout">These are raw sensor values. Light is in ADC units (not lux), sound is a span (not dB), and expected-empty mode is not physical occupancy detection.</div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Test notes</h2><span class="chip plain">Saved in this browser</span></div>
+          <p class="card-note" style="margin-bottom:12px">Use the capture buttons on each test to add the current reading here, or type your own notes.</p>
+          <textarea class="notes" id="notes" placeholder="Example: Dark 791, room lighting 650, flashlight 250. Magnet near = 0, far = 1."></textarea>
+          <div class="btn-row">
+            <button class="btn primary" data-act="export"><span data-ico="download" data-size="16"></span>Export test report</button>
+            <button class="btn" data-act="copyvals"><span data-ico="copy" data-size="16"></span>Copy current values</button>
+          </div>
+          <p class="card-note" style="margin-top:12px;font-size:12.5px">Export your report before clearing browser data. This page is not the only copy of your evidence you should rely on.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= HISTORY ================= -->
+  <section class="view" id="view-history" hidden>
+    <div class="page-head"><h1>Data history</h1><p>Review and export the measurements your bridge has recorded.</p></div>
+    <div class="hstats" id="hstats"></div>
+    <div class="card">
+      <div class="card-head">
+        <div><h2>Latest recorded sensor values</h2><div class="card-note" id="histSub" style="margin-top:2px"></div></div>
+        <div class="tools">
+          <select class="sel" id="rowSel" aria-label="Rows shown"><option value="20" selected>Last 20 rows</option><option value="50">Last 50 rows</option><option value="100">Last 100 rows</option><option value="200">Last 200 rows</option><option value="480">Last 480 rows</option></select>
+          <button class="btn primary" data-act="csv"><span data-ico="download" data-size="16"></span>Download readings CSV</button>
+          <button class="btn" data-act="refresh"><span data-ico="refresh" data-size="16"></span>Refresh</button>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Time</th><th>Temp °C</th><th>Humidity %</th><th>Light (lower is brighter)</th><th>Sound span</th><th>Door</th><th>Expected empty</th><th>Alert</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p class="card-note" style="margin-top:14px;font-size:12.5px">Local mode exports the complete laptop CSV. Hosted mode exports the latest available ThingSpeak readings (up to 800). This website cannot switch modes or operate the Arduino.</p>
+    </div>
+  </section>
+
+  <footer class="foot"><span>Room 304 • Real sensor data • Read-only monitoring</span><span id="footTime"></span></footer>
+</main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+
+ /* =====================================================================
+    Room 304 local-server API configuration.
+    All ThingSpeak keys stay in your private .env file, never in HTML or JS.
+    ===================================================================== */
+ const CONFIG = {
+   liveUrl: '/api/live', cloudUrl: '/api/cloud', exportUrl: '/api/export.csv',
+   pollMs: 3000, staleAfterSec: 20, maxKeep: 800,
+   targets: { temp: [18, 28], hum: [30, 70] },
+   lightVisualRange: { darkAdc: 790, brightAdc: 110 },
+   alertLabels: { 0: 'Normal conditions', 1: 'Comfort warning', 2: 'Lighting warning', 3: 'DHT sensor fault' }
+ };
+
+/* ---------- helpers ---------- */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const fmtTime = d => d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const fmt = (v, d = 0) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+const fmtAge = s => s < 2 ? 'just now' : s < 60 ? Math.round(s) + 's ago' : s < 3600 ? Math.floor(s / 60) + 'm ' + Math.round(s % 60) + 's ago' : Math.floor(s / 3600) + 'h ago';
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+
+const ICON = {
+  thermo:'<path d="M14 14.76V5a2 2 0 1 0-4 0v9.76a4 4 0 1 0 4 0z"/>',
+  drop:'<path d="M12 2.7s6 6.3 6 10.8a6 6 0 0 1-12 0C6 9 12 2.7 12 2.7z"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  wave:'<path d="M3 12h2M7 8v8M11 4v16M15 8v8M19 10v4"/>',
+  door:'<path d="M5 21V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v17M3 21h18"/><path d="M12.5 12.5h.01"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
+  bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
+  radar:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/><path d="M12 12l6-6"/>',
+  cloud:'<path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.8A6 6 0 0 0 4.5 12a3.5 3.5 0 0 0 .5 7z"/>',
+  grid:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  flask:'<path d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3"/><path d="M7.5 15h9"/>',
+  table:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/>',
+  download:'<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
+  refresh:'<path d="M21 12a9 9 0 0 1-15.5 6.2L3 16M3 12a9 9 0 0 1 15.5-6.2L21 8M21 3v5h-5M3 21v-5h5"/>',
+  check:'<path d="M20 6L9 17l-5-5"/>',
+  copy:'<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
+  alert:'<path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
+  moon:'<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+  button:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/>',
+  bulb:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.4 1.1 2.2h5c0-.8.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/>'
+};
+const ico = (n, sz = 18) => `<svg class="ico" width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>`;
+
+/* ---------- state ---------- */
+const T = CONFIG.targets;
+const S = {
+   samples: [], mode: 'connecting', source: 'local', fetchErr: false,
+   view: 'overview', metric: 'temp', win: 120, histRows: 20,
+   cloud: { state: 'idle' }
+};
+const checks = store.get('sentinel.checks', {});
+// Display-only intensity based on observed ADC endpoints (lower ADC = brighter).
+// Seven equal visual steps are used for the top-center classroom light cone.
+// No lux or brightness percentage is presented to users.
+function lightVisualLevel(adc) {
+  if (adc == null || !Number.isFinite(Number(adc))) return 0;
+  const {darkAdc,brightAdc} = CONFIG.lightVisualRange;
+  const normalized = clamp((darkAdc - Number(adc)) / (darkAdc - brightAdc), 0, 1);
+  return Math.round(normalized * 7) / 7;
+}
+const last = () => S.samples[S.samples.length - 1];
+
+const METRICS = {
+  temp : { label: 'Temperature',    unit: '°C',    key: 'temp',  color: 'var(--c-temp)',  range: T.temp },
+  hum  : { label: 'Humidity',       unit: '%',     key: 'hum',   color: 'var(--c-hum)',   range: T.hum },
+  light: { label: 'Ambient light',  unit: '/1023', key: 'light', color: 'var(--c-light)', range: null },
+  sound: { label: 'Sound activity', unit: 'span',  key: 'sound', color: 'var(--c-sound)', range: null }
+};
+
+ /* =====================================================================
+    DATA: live readings are served by the existing Flask backend from the
+    real Python bridge CSV. NO simulated sensor values in production.
+    ===================================================================== */
+ function parseTs(s) {
+   if (!s) return null;
+   const d = new Date(s);
+   return Number.isNaN(d.getTime()) ? null : d;
+ }
+ const asNumber = v => v === null || v === '' || v === undefined ? null : (Number.isFinite(Number(v)) ? Number(v) : null);
+ function normaliseSample(d) {
+   return {
+     t: parseTs(d.timestamp_utc),
+     temp: asNumber(d.temperature_c), hum: asNumber(d.humidity_percent),
+     light: asNumber(d.light), sound: asNumber(d.sound_span),
+     door: asNumber(d.door_open), empty: asNumber(d.expected_empty),
+     alert: asNumber(d.alert_code), pir: asNumber(d.pir_motion)
+   };
+ }
+ async function loadCSV() {
+   const response = await fetch(CONFIG.liveUrl, { cache: 'no-store' });
+   if (!response.ok) throw new Error('Live API HTTP ' + response.status);
+   const payload = await response.json();
+   S.samples = (payload.history || []).map(normaliseSample).filter(x => x.t).slice(-CONFIG.maxKeep);
+   S.mode = 'live'; S.source = payload.source === 'cloud' ? 'cloud' : 'local'; S.fetchErr = false;
+ }
+ async function fetchCloud() {
+   try {
+     const response = await fetch(CONFIG.cloudUrl, { cache: 'no-store' });
+     if (!response.ok) throw new Error('ThingSpeak API HTTP ' + response.status);
+     const payload = await response.json();
+     if (!payload.configured) {
+       S.cloud = {state: 'unconfigured',message: payload.message || 'Not configured'};
+     } else if (payload.feeds && payload.feeds.length) {
+       const lastFeed = payload.feeds[payload.feeds.length - 1];
+       const newest = parseTs(lastFeed.timestamp_utc);
+       S.cloud = {
+         state: newest && (Date.now() - newest.getTime()) < 150000 ? 'ok' : 'stale', channel: payload.channel_name || 'Room 304 Smart Classroom',
+         count: payload.feeds.length, last: newest
+       };
+     } else {
+       S.cloud = {state:'error', message:payload.message || 'No cloud readings yet'};
+     }
+   } catch (e) {
+     S.cloud = {state:'error',message:'ThingSpeak is unreachable. Check the dashboard server.'};
+   }
+   renderCloud(); renderChrome();
+ }
+ async function poll() {
+   try { await loadCSV(); }
+   catch (e) { S.fetchErr = true; }
+   render();
+ }
+
+/* =====================================================================
+   DERIVED STATE
+   ===================================================================== */
+ function liveState() {
+   const L = last();
+   if (S.fetchErr) return { tone: 'bad', text: 'Data feed unavailable' };
+   if (!L) return { tone: 'warn', text: S.source === 'cloud' ? 'Waiting for ThingSpeak' : 'Waiting for Arduino' };
+   const age = (Date.now() - L.t.getTime()) / 1000;
+   if (age < -5) return {tone:'warn', text:'Check sensor timestamp'};
+   const limit = S.source === 'cloud' ? 90 : CONFIG.staleAfterSec;
+   if (age <= limit) return { tone: 'ok', text: S.source === 'cloud' ? 'Recent cloud data' : 'Live, recent data' };
+   if (age <= 300) return { tone: 'warn', text: 'Delayed sensor data' };
+   return { tone: 'bad', text: 'No recent sensor data' };
+ }
+
+function alertInfo(code) {
+   if (code == null) return { label: 'No alert data',tone:'warn',color:'var(--warn)',name:'unknown',detail:'Waiting for a firmware alert code.' };
+   const lab = CONFIG.alertLabels[code];
+  if (code === 0) return { label: CONFIG.alertLabels[0], tone: 'ok', color: 'var(--ok)', name: 'green',
+    detail: 'Current readings are within the configured comfort rules.' };
+  if (code === 1) return { label: lab || 'Comfort warning', tone: 'info', color: 'var(--info)', name: 'blue',
+    detail: `Temperature or humidity is outside the comfort range (${T.temp[0]} to ${T.temp[1]} °C, ${T.hum[0]} to ${T.hum[1]} %).` };
+  if (code === 2) return { label: lab || 'Lighting warning', tone: 'bad', color: 'var(--bad)', name: 'red',
+    detail: 'Expected-empty mode and bright conditions triggered the firmware lighting rule. Check sensor calibration.' };  if (code === 3) return { label: 'DHT sensor fault', tone: 'bad', color: 'var(--bad)', name: 'red',
+     detail: 'The DHT temperature/humidity reading failed. Inspect sensor D2 and wiring.' };
+  return { label: lab || `Alert code ${code}`, tone: 'warn', color: 'var(--warn)', name: 'amber',
+     detail: 'The firmware reported an unknown alert code.' };
+}
+
+function computeEvents() {
+  const ev = [], s = S.samples;
+  for (let i = 1; i < s.length; i++) {
+    const a = s[i - 1], b = s[i];
+    if (a.door != null && b.door != null && a.door !== b.door)
+      ev.push({ t: b.t, icon: 'door', tone: 'info', title: b.door ? 'Door reported open' : 'Door reported closed', sub: 'Mini Reed on D3, value ' + b.door });
+    if (a.empty != null && b.empty != null && a.empty !== b.empty)
+      ev.push({ t: b.t, icon: 'users', tone: 'ok', title: b.empty ? 'Mode changed to expected empty' : 'Mode changed to expected occupied', sub: 'Classroom mode button on D4' });
+    if (a.alert != null && b.alert != null && a.alert !== b.alert) {
+      const ai = alertInfo(b.alert);
+      ev.push({ t: b.t, icon: 'bell', tone: ai.tone, title: ai.label, sub: 'Local alert code ' + b.alert });
+    }
+  }
+  return ev.reverse().slice(0, 8);
+}
+const transitions = k => { let n = 0; for (let i = 1; i < S.samples.length; i++) if (S.samples[i][k] !== S.samples[i - 1][k]) n++; return n; };
+const rangeOf = k => { const v = S.samples.map(d => d[k]).filter(x => x != null); return v.length ? [Math.min(...v), Math.max(...v)] : null; };
+
+/* =====================================================================
+   RENDER: chrome (header, pill, pipeline)
+   ===================================================================== */
+ function renderChrome() {
+   const L = last(), live = liveState();
+   const pill = $('#livePill'); pill.dataset.tone = live.tone; $('#liveText').textContent = live.text;
+   if (L) { $('#lastTime').textContent = fmtTime(L.t); $('#lastAge').textContent = fmtAge(Math.max(0,(Date.now()-L.t)/1000)); }
+   else { $('#lastTime').textContent = '–'; $('#lastAge').textContent = ''; }
+   $('#demoBar').hidden = true;
+   const cloudTone = {ok:'ok',stale:'warn',unconfigured:'warn',error:'bad',idle:'info'}[S.cloud.state] || 'warn';
+   const cloudSub = {ok:'Recent cloud history',stale:'Cloud readings delayed',unconfigured:'Not configured',error:'Unavailable',idle:'Checking'}[S.cloud.state] || 'Checking';
+   const steps = [
+     { name:'Arduino UNO',sub: L ? 'Last reported reading' : 'Waiting for readings',tone:live.tone },
+     { name:'Python bridge',sub: S.source === 'cloud' ? 'Last cloud upload' : S.fetchErr ? 'Dashboard API unreachable' : L ? 'Local CSV logging' : 'No samples yet',tone:live.tone },
+     { name:'ThingSpeak',sub:cloudSub,tone:cloudTone }
+   ];
+   $('#pipeline').innerHTML = '<div class="pl-title">Data pipeline</div>' +
+     steps.map(s=>`<div class="pl-step" data-tone="${s.tone}"><span class="pl-dot"></span><div><div class="pl-name">${s.name}</div><div class="pl-sub">${s.sub}</div></div></div>`).join('');
+   $('#footTime').textContent = 'Refreshed ' + fmtTime(new Date());
+ }
+
+/* =====================================================================
+   RENDER: overview
+   ===================================================================== */
+function sparkline(vals, color, w = 104, h = 40) {
+  vals = vals.filter(v => v != null);
+  if (vals.length < 2) return `<svg class="spark" viewBox="0 0 ${w} ${h}"></svg>`;
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (hi - lo < 1e-9) { lo -= 1; hi += 1; }
+  const pts = vals.map((v, i) => [i / (vals.length - 1) * (w - 4) + 2, h - 4 - (v - lo) / (hi - lo) * (h - 10)]);
+  const d = 'M' + pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L');
+  const id = 'sg' + Math.random().toString(36).slice(2, 8);
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" aria-hidden="true"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:${color};stop-opacity:.32"/><stop offset="1" style="stop-color:${color};stop-opacity:0"/></linearGradient></defs><path d="${d}L${w - 2} ${h}L2 ${h}Z" fill="url(#${id})"/><path d="${d}" fill="none" style="stroke:${color}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+
+function rangeMeter(v, min, max, band) {
+  const pct = x => clamp((x - min) / (max - min) * 100, 0, 100);
+  return `<div class="meter"><div class="band" style="left:${pct(band[0])}%;width:${pct(band[1]) - pct(band[0])}%"></div><div class="dot" style="left:${pct(v)}%"></div></div>
+          <div class="meter-scale"><span>${min}</span><span>Target ${band[0]} to ${band[1]}</span><span>${max}</span></div>`;
+}
+
+function kpi(o) {
+  return `<article class="card kpi" style="--c:var(--c-${o.key})">
+    <div class="kpi-head"><span class="kpi-label">${o.label}</span><span class="kpi-ico">${ico(o.icon, 18)}</span></div>
+    <div class="kpi-row"><div class="kpi-val">${o.val}<small>${o.unit}</small></div>${sparkline(o.spark, `var(--c-${o.key})`)}</div>
+    ${o.meter}
+    <div class="kpi-foot"><span class="chip" data-tone="${o.tone}">${o.chip}</span><span class="cap">${o.cap}</span></div>
+  </article>`;
+}
+
+function renderKPIs() {
+  const L = last(); if (!L) return;
+  const tail = k => S.samples.slice(-40).map(d => d[k]);
+  const rc = (v, [a, b]) => v == null ? ['info', 'No reading'] : v < a ? ['info', 'Below target'] : v > b ? ['warn', 'Above target'] : ['ok', 'In target range'];
+  const [tt, tx] = rc(L.temp, T.temp), [ht, hx] = rc(L.hum, T.hum);
+  const lightLevel = lightVisualLevel(L.light);
+  const peak = Math.max(...S.samples.slice(-60).map(d => d.sound ?? 0), 1);
+  const soundPct = L.sound == null ? 0 : clamp(L.sound / Math.max(peak, 20) * 100, 0, 100);
+  $('#kpis').innerHTML = [
+    kpi({ key: 'temp', label: 'Temperature', icon: 'thermo', val: fmt(L.temp, 1), unit: '°C', tone: tt, chip: tx, spark: tail('temp'),
+          meter: L.temp == null ? '' : rangeMeter(L.temp, 10, 40, T.temp), cap: `Within ${T.temp[0]} to ${T.temp[1]} °C` }),
+    kpi({ key: 'hum', label: 'Humidity', icon: 'drop', val: fmt(L.hum, 0), unit: '%', tone: ht, chip: hx, spark: tail('hum'),
+          meter: L.hum == null ? '' : rangeMeter(L.hum, 0, 100, T.hum), cap: `Within ${T.hum[0]} to ${T.hum[1]} %` }),
+    kpi({ key: 'light', label: 'Ambient light', icon: 'sun', val: fmt(L.light, 0), unit: '/1023', tone: 'info', chip: 'Lower ADC = brighter', spark: tail('light'),
+          meter: `<div class="meter"><div class="fill" style="width:${(lightLevel * 100).toFixed(1)}%"></div></div><div class="meter-scale"><span>Dark</span><span>Lower ADC = brighter</span><span>Bright</span></div>`,
+          cap: 'Raw analog value · not lux' }),
+    kpi({ key: 'sound', label: 'Sound activity', icon: 'wave', val: fmt(L.sound, 0), unit: 'span', tone: 'info', chip: 'Relative movement', spark: tail('sound'),
+          meter: `<div class="meter"><div class="fill" style="width:${soundPct}%"></div></div><div class="meter-scale"><span>Quiet</span><span>Recent peak ${peak}</span><span>Loud</span></div>`,
+          cap: 'Not decibels' })
+  ].join('');
+}
+
+function renderHero() {
+  const L = last(); if (!L) return;
+  const a = alertInfo(L.alert);
+  const hero = $('#hero'); hero.dataset.tone = a.tone;
+  $('#heroIco').innerHTML = ico(a.tone === 'ok' ? 'check' : 'alert', 24);
+  $('#heroState').textContent = a.label; $('#heroDetail').textContent = a.detail;
+  const open = L.door === 1, occ = !L.empty;
+  $('#heroLegend').innerHTML = [
+    `<span class="chip plain"><i style="--c:var(--info)"></i>Door reported ${L.door == null ? 'unknown' : open ? 'open' : 'closed'}</span>`,
+    `<span class="chip plain"><i style="--c:var(--c-hum)"></i>Expected ${occ ? 'occupied' : 'empty'}</span>`,
+    `<span class="chip plain"><i style="--c:${a.color}"></i>Expected LED ${a.name}</span>`,
+    `<span class="chip plain"><i></i>${S.samples.length} samples held</span>`
+  ].join('');
+
+  // plan updates
+  $('#planRoom').style.stroke = a.color;
+  $('#planLed').style.color = a.color;
+  $('#planDoor').setAttribute('transform', open ? 'rotate(62 20 276)' : 'rotate(0 20 276)');
+  $('#planArc').style.opacity = open ? 1 : 0;
+  // The original top-center cone changes in ~14% intensity steps and fades
+  // smoothly between steps. The rest of the classroom never gets a light wash.
+  $('#planCone').setAttribute('opacity', (lightVisualLevel(L.light) * 0.84).toFixed(3));
+  const lvl = L.sound == null ? 0 : clamp(L.sound / 60, 0, 1);
+  $$('#planSound circle').forEach((c, i) => c.setAttribute('opacity', (.07 + lvl * .7 / (i + 1)).toFixed(2)));
+  $$('#planDesks .seat').forEach(s => { s.style.fill = occ ? 'var(--accent)' : 'var(--surface3)'; s.style.opacity = occ ? .9 : 1; });
+}
+
+function buildDesks() {
+  let h = '';
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
+    const x = 112 + c * 92, y = 112 + r * 56;
+    h += `<rect x="${x}" y="${y}" width="58" height="26" rx="6" style="fill:var(--surface3);stroke:var(--line2)" stroke-width="1"/><circle class="seat" cx="${x + 29}" cy="${y + 38}" r="6.5" style="fill:var(--accent)"/>`;
+  }
+  $('#planDesks').innerHTML = h;
+}
+
+function renderDevices() {
+  const L = last(); if (!L) return;
+  const a = alertInfo(L.alert);
+  const doorOk = !!checks.door;
+  const devs = [
+    { icon: 'door', name: 'Door input', meta: 'Mini Reed on D3', state: L.door == null ? 'No reading' : L.door ? 'Reported open' : 'Reported closed',
+      note: doorOk ? 'Verified with a magnet' : 'Magnet test still pending', tone: 'info' },
+    { icon: 'users', name: 'Classroom mode', meta: 'Physical button on D4', state: L.empty ? 'Expected empty' : 'Expected occupied',
+      note: 'Expected state, not confirmed occupancy', tone: 'ok' },
+    { icon: 'bulb', name: 'Local alert', meta: 'RGB LED and buzzer', state: a.label, note: 'Firmware code ' + (L.alert ?? '–') + ' · verify hardware visually', tone: a.tone },
+    { icon: 'radar', name: 'PIR motion sensor', meta: 'Reserved pin D7', state: 'Not installed', note: 'Disabled in firmware', tone: '', off: true }
+  ];
+  $('#devices').innerHTML = devs.map(d => `<div class="dev${d.off ? ' off' : ''}" data-tone="${d.tone}">
+      <span class="dev-ico">${ico(d.icon, 20)}</span>
+      <div><div class="dev-name">${d.name}</div><div class="dev-meta">${d.meta}</div></div>
+      <div class="dev-state">${d.state}<div class="dev-note">${d.note}</div></div></div>`).join('');
+}
+
+function renderEvents() {
+  const ev = computeEvents();
+  $('#events').innerHTML = ev.length
+    ? `<ul class="evlist">${ev.map(e => `<li class="ev" data-tone="${e.tone}"><span class="ev-ico">${ico(e.icon, 17)}</span><div><div class="ev-title">${e.title}</div><div class="ev-sub">${e.sub}</div></div><time>${fmtTime(e.t)}</time></li>`).join('')}</ul>`
+    : `<div class="empty">No state changes in the recent samples. Press the classroom mode button or open the door to create an event.</div>`;
+}
+
+function renderCloud() {
+  const c = S.cloud;
+  const map = { ok: ['ok', 'Connected'], stale: ['warn', 'Delayed cloud'], unconfigured: ['warn', 'Not configured'], error: ['bad', 'Unavailable'], idle: ['info', 'Checking'] };
+  const [tone, txt] = map[c.state];
+  const safe = v => String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+   const body = c.state === 'unconfigured'
+    ? `<div class="empty" style="padding:22px 4px">Set THINGSPEAK_CHANNEL_ID and THINGSPEAK_READ_KEY in your private .env file to show cloud uploads here.</div>`
+    : c.state === 'error'
+    ? `<div class="empty" style="padding:22px 4px">${safe(c.message || 'ThingSpeak could not be reached. Check your Channel ID, Read API Key and internet connection.')}</div>`
+    : `<p class="card-note">Cloud channel: ${safe(c.channel || '–')}</p>
+       <div class="stats2"><div class="stat"><span>Recent cloud points</span><b>${c.count ?? '–'}</b></div>
+       <div class="stat"><span>Last uploaded sample</span><b>${c.last ? fmtTime(c.last) : '–'}</b></div></div>
+       <p class="card-note" style="font-size:12.5px">ThingSpeak stores cloud history. Local-mode readings also remain in the laptop CSV; hosted mode uses cloud readings only.</p>`;
+  $('#cloudCard').innerHTML = `<div class="card-head"><h2>ThingSpeak cloud</h2><span class="chip" data-tone="${tone}">${txt}</span></div>${body}
+    <div class="btn-row"><button class="btn" data-act="refreshCloud"><span>${ico('refresh', 16)}</span>Refresh cloud</button>
+    <button class="btn" data-act="goto" data-view="history"><span>${ico('table', 16)}</span>View history</button></div>`;
+}
+
+/* ---------- trend chart ---------- */
+function drawChart() {
+   if (S.view !== 'overview') return;
+   const host = $('#chart'); if (!host || !host.clientWidth) return;
+  const m = METRICS[S.metric], data = S.samples.slice(-S.win);
+  const raw = data.map(d => d[m.key]);
+  const vals = raw.filter(v => v != null);
+  if (vals.length < 2) { host.innerHTML = '<div class="empty">Waiting for more data.</div>'; return; }
+  let prev = vals[0]; const series = raw.map(v => (v == null ? prev : (prev = v)));
+  const W = host.clientWidth, H = 290, ml = 46, mr = 14, mt = 14, mb = 30, iw = W - ml - mr, ih = H - mt - mb;
+  let lo = Math.min(...series), hi = Math.max(...series);
+  const minSpan = { temp: 1, hum: 4, light: 40, sound: 10 }[S.metric];
+  let pad = (hi - lo) * .15;
+  if (hi - lo < minSpan) { const mid = (hi + lo) / 2; lo = mid - minSpan / 2; hi = mid + minSpan / 2; pad = 0; }
+  lo -= pad; hi += pad; if (S.metric === 'sound') lo = Math.max(0, lo);
+  const n = series.length;
+  const x = i => ml + (n === 1 ? 0 : i / (n - 1)) * iw;
+  const y = v => mt + (1 - (v - lo) / (hi - lo)) * ih;
+  const dec = S.metric === 'temp' ? 1 : (hi - lo) < 6 ? 1 : 0;
+  const pts = series.map((v, i) => [x(i), y(v)]);
+  const line = 'M' + pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L');
+  let grid = '';
+  for (let k = 0; k < 4; k++) {
+    const v = lo + (hi - lo) * k / 3, yy = y(v);
+    grid += `<line x1="${ml}" x2="${W - mr}" y1="${yy}" y2="${yy}" style="stroke:var(--line)" stroke-dasharray="${k ? '3 5' : '0'}"/><text x="${ml - 10}" y="${yy + 4}" text-anchor="end" style="fill:var(--dim);font-size:11px;font-family:var(--body)">${v.toFixed(dec)}</text>`;
+  }
+  let xl = '';
+  const ticks = W < 520 ? [0, 1] : [0, 1 / 3, 2 / 3, 1];
+  ticks.forEach((f, k) => {
+    const i = Math.round(f * (n - 1));
+    xl += `<text x="${x(i)}" y="${H - 8}" text-anchor="${k === 0 ? 'start' : k === ticks.length - 1 ? 'end' : 'middle'}" style="fill:var(--dim);font-size:11px;font-family:var(--body)">${fmtTime(data[i].t)}</text>`;
+  });
+  let band = '';
+  if (m.range && m.range[1] > lo && m.range[0] < hi) {
+    const y1 = y(Math.min(m.range[1], hi)), y2 = y(Math.max(m.range[0], lo));
+    band = `<rect x="${ml}" y="${y1}" width="${iw}" height="${y2 - y1}" style="fill:var(--ok)" opacity=".08"/><text x="${W - mr - 6}" y="${y1 + 14}" text-anchor="end" style="fill:var(--ok);font-size:11px;font-weight:700;font-family:var(--body)" opacity=".85">Target ${m.range[0]} to ${m.range[1]}</text>`;
+  }
+  const lp = pts[n - 1];
+  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${m.label} trend over the last ${n} samples">
+    <defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:${m.color};stop-opacity:.3"/><stop offset="1" style="stop-color:${m.color};stop-opacity:0"/></linearGradient></defs>
+    ${band}${grid}${xl}
+    <path d="${line}L${x(n - 1)} ${mt + ih}L${x(0)} ${mt + ih}Z" fill="url(#cg)"/>
+    <path d="${line}" fill="none" style="stroke:${m.color}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${lp[0]}" cy="${lp[1]}" r="9" style="fill:${m.color}" opacity=".2"/><circle cx="${lp[0]}" cy="${lp[1]}" r="4.5" style="fill:${m.color};stroke:var(--surface)" stroke-width="2"/>
+    <line id="hv" x1="0" x2="0" y1="${mt}" y2="${mt + ih}" style="stroke:var(--line2)" opacity="0"/>
+    <circle id="hd" r="5" style="fill:${m.color};stroke:var(--surface)" stroke-width="2" opacity="0"/>
+    <rect x="${ml}" y="${mt}" width="${iw}" height="${ih}" fill="transparent" id="hit"/>
+  </svg><div class="tip" id="tip"></div>`;
+  const svg = host.querySelector('svg'), tip = $('#tip'), hv = $('#hv'), hd = $('#hd');
+  const move = e => {
+    const r = svg.getBoundingClientRect(), px = (e.clientX - r.left) * (W / r.width);
+    const i = clamp(Math.round((px - ml) / iw * (n - 1)), 0, n - 1);
+    hv.setAttribute('x1', x(i)); hv.setAttribute('x2', x(i)); hv.setAttribute('opacity', 1);
+    hd.setAttribute('cx', x(i)); hd.setAttribute('cy', y(series[i])); hd.setAttribute('opacity', 1);
+    tip.innerHTML = `<b>${series[i].toFixed(S.metric === 'temp' ? 1 : 0)} ${m.unit}</b><span>${fmtTime(data[i].t)}</span>`;
+    tip.style.left = clamp(x(i), 60, W - 60) + 'px'; tip.style.top = y(series[i]) + 'px'; tip.style.opacity = 1;
+  };
+  const out = () => { hv.setAttribute('opacity', 0); hd.setAttribute('opacity', 0); tip.style.opacity = 0; };
+  svg.addEventListener('pointermove', move); svg.addEventListener('pointerleave', out);
+
+  const avg = series.reduce((a, b) => a + b, 0) / n, d1 = S.metric === 'temp' ? 1 : (S.metric === 'hum' ? 1 : 0);
+  $('#trendStats').innerHTML = [['Latest', series[n - 1]], ['Lowest', Math.min(...series)], ['Average', avg], ['Highest', Math.max(...series)]]
+    .map(([l, v]) => `<div class="tstat"><span>${l}</span><b>${v.toFixed(d1)} <small class="muted" style="font:600 12px var(--body)">${m.unit}</small></b></div>`).join('');
+  $('#trendFoot').textContent = `${m.label}, ${n} local samples, ${m.unit}`;
+  $('#trendRefresh').textContent = `Refreshes every ${CONFIG.pollMs / 1000} seconds`;
+}
+
+function renderOverview() { renderHero(); renderKPIs(); drawChart(); renderDevices(); renderEvents(); }
+
+/* =====================================================================
+   RENDER: test & calibrate
+   ===================================================================== */
+const TESTS = [
+  { id: 'th',    title: 'Temperature and humidity', desc: 'Let the sensor stabilise, then compare the live values with a reasonable indoor reference.', cap: [['Snapshot', 'th']] },
+  { id: 'light', title: 'Light sensor', desc: 'Compare covered, room lighting and a flashlight. A lower value should mean brighter.', cap: [['Dark', 'light'], ['Room lighting', 'light'], ['Flashlight', 'light']] },
+  { id: 'mic',   title: 'Microphone', desc: 'Compare a quiet room against repeated clapping and confirm the sound span rises.', cap: [['Quiet', 'sound'], ['Clapping peak', 'peak']] },
+  { id: 'door',  title: 'Mini Reed door input', desc: 'Move a magnet toward and away from the reed switch. Confirm the value changes between 0 and 1.', cap: [['Magnet near', 'door'], ['Magnet far', 'door']] },
+  { id: 'mode',  title: 'Classroom mode button', desc: 'Press once and check that expected-empty mode changes, then switch it back.', cap: [] },
+  { id: 'led',   title: 'RGB LED and buzzer', desc: 'Confirm green for normal, blue for a comfort warning, red for a lighting warning, and the buzzer.', cap: [] },
+  { id: 'cloud', title: 'Local bridge and ThingSpeak', desc: 'Check local CSV logging and at least ten real cloud points.', cap: [] }
+];
+
+function evidence(id) {
+  const L = last(); if (!L) return 'Waiting for data';
+  switch (id) {
+    case 'th':    return `Now ${fmt(L.temp, 1)} °C and ${fmt(L.hum, 0)} %`;
+    case 'light': { const r = rangeOf('light'); return r ? `Seen in log: ${r[0]} to ${r[1]}` : 'No readings'; }
+    case 'mic':   { const r = rangeOf('sound'); return r ? `Seen in log: ${r[0]} to ${r[1]}` : 'No readings'; }
+    case 'door':  return `Now ${L.door ?? '–'}, ${transitions('door')} changes in log`;
+    case 'mode':  return `Now ${L.empty ? 'expected empty' : 'expected occupied'}, ${transitions('empty')} changes in log`;
+    case 'led':   return `Alert code ${L.alert ?? '–'}, ${transitions('alert')} changes in log`;
+    case 'cloud': return `${S.cloud.count ?? 0} cloud points, ${S.samples.length} local samples`;
+  }
+  return '';
+}
+
+function buildChecklist() {
+  $('#tests').innerHTML = TESTS.map(t => `<div class="test${checks[t.id] ? ' done' : ''}" data-id="${t.id}">
+      <button class="chk" role="checkbox" aria-checked="${!!checks[t.id]}" aria-label="Mark ${t.title} as verified">${ico('check', 16)}</button>
+      <div><div class="test-title">${t.title}</div><div class="test-desc">${t.desc}</div>
+      <div class="test-meta"><span class="evid" data-evid="${t.id}"></span>${t.cap.map(([l, k]) => `<button class="btn sm" data-cap="${k}" data-label="${l}">Capture ${l.toLowerCase()}</button>`).join('')}</div></div>
+    </div>`).join('');
+  updateProgress();
+}
+function updateProgress() {
+  const n = TESTS.filter(t => checks[t.id]).length, pct = Math.round(n / TESTS.length * 100), C = 2 * Math.PI * 24;
+  $('#prog').innerHTML = `<svg width="60" height="60" viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="24" fill="none" style="stroke:var(--surface3)" stroke-width="6"/>
+    <circle cx="30" cy="30" r="24" fill="none" style="stroke:var(--ok)" stroke-width="6" stroke-linecap="round" stroke-dasharray="${(C * pct / 100).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 30 30)"/></svg>
+    <div style="flex:1"><b>${n} of ${TESTS.length} tests verified</b><span>${n === TESTS.length ? 'Everything is signed off. Export your report.' : 'Work through the list and tick each test when the hardware responds.'}</span></div><b>${pct}%</b>`;
+}
+function updateEvidence() { $$('[data-evid]').forEach(el => el.textContent = evidence(el.dataset.evid)); }
+
+function renderTest() {
+  const L = last();   if (!L) $('#live4').innerHTML = '<div class="empty" style="grid-column:1/-1">Waiting for bridge readings.</div>';
+   if (L) {
+     const tile = (lab, key, color, d) => `<div class="tile" style="--c:${color}"><span>${lab}</span><b>${fmt(L[key], d)}</b>${sparkline(S.samples.slice(-30).map(s => s[key]), color, 70, 28)}</div>`;
+    $('#live4').innerHTML = tile('Temperature °C', 'temp', 'var(--c-temp)', 1) + tile('Humidity %', 'hum', 'var(--c-hum)', 0) + tile('Light', 'light', 'var(--c-light)', 0) + tile('Sound span', 'sound', 'var(--c-sound)', 0);
+  }
+  const live = liveState(), age = L ? (Date.now() - L.t) / 1000 : null;
+  const cs = S.cloud.state, ct = { ok: ['ok', 'History available'], stale:['warn','Cloud history delayed'], unconfigured: ['warn', 'Not configured'], error: ['bad', 'Unreachable'], idle: ['info', 'Checking'] }[cs];
+  const rows = [
+    ['Arduino data feed', live.tone, live.text],
+    ['Age of latest reading', age == null ? 'warn' : age <= CONFIG.staleAfterSec ? 'ok' : 'warn', age == null ? '–' : Math.round(age) + ' seconds'],
+    ['Recent local samples', 'info', String(S.samples.length)],
+    ['Light direction', 'info', 'Lower value = brighter'],
+    ['Door switch verification', checks.door ? 'ok' : 'warn', checks.door ? 'Verified' : 'Test with a magnet'],
+    ['ThingSpeak', ct[0], ct[1]]
+  ];
+  $('#diag').innerHTML = rows.map(r => `<div class="diag"><span class="muted">${r[0]}</span><b data-tone="${r[1]}"><i></i>${r[2]}</b></div>`).join('');
+  updateEvidence();
+}
+
+function valuesText() {
+  const L = last(); if (!L) return 'No data yet.';
+  const a = alertInfo(L.alert);
+   return [`Sample time: ${fmtTime(L.t)}`, `Temperature: ${fmt(L.temp, 1)} °C`, `Humidity: ${fmt(L.hum, 0)} %`,
+    `Light: ${fmt(L.light, 0)} / 1023 (lower is brighter)`, `Sound span: ${fmt(L.sound, 0)}`,
+    `Door input (unverified): ${L.door ?? '–'} (${L.door == null ? 'unknown' : L.door ? 'reported open' : 'reported closed'})`, `Expected empty: ${L.empty ?? '–'}`, `Alert: ${L.alert ?? '–'} (${a.label})`].join('\n');
+}
+function buildReport() {
+  const n = TESTS.filter(t => checks[t.id]).length;
+  return [`${'Smart Classroom Sentinel'}: Room 304 test report`, `Generated: ${new Date().toLocaleString()}`,
+    `Data source: Python bridge CSV through /api/live (real sensors only)`, '',
+    'CHECKLIST', ...TESTS.map(t => `[${checks[t.id] ? 'x' : ' '}] ${t.title} - ${evidence(t.id)}`),
+    `${n} of ${TESTS.length} tests verified (PIR intentionally excluded)`, '', 'LATEST VALUES', valuesText(), '',
+    'NOTES', ($('#notes').value.trim() || '(none)')].join('\n');
+}
+
+function capture(kind, label) {
+  const L = last(); if (!L) return toast('No data to capture yet');
+  let line;
+  if (kind === 'th') line = `Temperature and humidity: ${fmt(L.temp, 1)} °C, ${fmt(L.hum, 0)} %`;
+  else if (kind === 'light') line = `Light, ${label.toLowerCase()}: ${L.light} (lower is brighter)`;
+  else if (kind === 'sound') line = `Sound, ${label.toLowerCase()}: ${L.sound}`;
+  else if (kind === 'peak') line = `Sound, clapping peak over last 10 samples: ${Math.max(...S.samples.slice(-10).map(d => d.sound ?? 0))}`;
+  else if (kind === 'door') line = `Door input, ${label.toLowerCase()}: ${L.door}`;
+  const ta = $('#notes'); ta.value += (ta.value && !ta.value.endsWith('\n') ? '\n' : '') + `[${fmtTime(L.t)}] ${line}\n`;
+  store.set('sentinel.notes', ta.value); toast('Added to your notes');
+}
+
+/* =====================================================================
+   RENDER: history
+   ===================================================================== */
+function renderHistory() {
+  const rows = S.samples.slice(-S.histRows).reverse();
+  const chipD = v => v == null ? '–' : `<span class="chip plain">${v} ${v ? 'open' : 'closed'}</span>`;
+  const chipE = v => v == null ? '–' : `<span class="chip plain">${v} ${v ? 'empty' : 'occupied'}</span>`;
+  const chipA = v => { if (v == null) return '–'; const a = alertInfo(v); return `<span class="chip" data-tone="${a.tone}">${v} ${a.label}</span>`; };   $('#rows').innerHTML = rows.length ? rows.map(d => {
+    const tw = d.temp != null && (d.temp < T.temp[0] || d.temp > T.temp[1]), hw = d.hum != null && (d.hum < T.hum[0] || d.hum > T.hum[1]);
+    return `<tr><td class="t">${fmtTime(d.t)}</td><td class="${tw ? 'warn' : ''}">${fmt(d.temp, 1)}</td><td class="${hw ? 'warn' : ''}">${fmt(d.hum, 1)}</td><td>${fmt(d.light, 0)}</td><td>${fmt(d.sound, 0)}</td><td>${chipD(d.door)}</td><td>${chipE(d.empty)}</td><td>${chipA(d.alert)}</td></tr>`;   }).join('') : '<tr><td colspan="8" class="empty">No logged readings yet. Start the Python bridge.</td></tr>';
+   $('#histSub').textContent = `Most recent ${rows.length} rows from ${S.source === 'cloud' ? 'ThingSpeak history' : 'your local CSV'} · scroll inside the table to see more`;
+  const win = S.samples.slice(-S.histRows);
+  const st = (k, d, label, color) => {
+    const v = win.map(x => x[k]).filter(x => x != null);
+    if (!v.length) return '';
+    const mn = Math.min(...v), mx = Math.max(...v), av = v.reduce((a, b) => a + b, 0) / v.length;
+    return `<div class="hs" style="--c:${color}"><h3>${label}</h3><div class="rng"><div><span>Lowest</span><b>${mn.toFixed(d)}</b></div><div><span>Average</span><b>${av.toFixed(d)}</b></div><div><span>Highest</span><b>${mx.toFixed(d)}</b></div></div></div>`;
+  };
+  $('#hstats').innerHTML = st('temp', 1, 'Temperature °C', 'var(--c-temp)') + st('hum', 1, 'Humidity %', 'var(--c-hum)') + st('light', 0, 'Light', 'var(--c-light)') + st('sound', 0, 'Sound span', 'var(--c-sound)');
+}
+
+/* =====================================================================
+   shell: routing, events, theme, toast
+   ===================================================================== */
+const VIEWS = { overview: 'Overview', test: 'Test & calibrate', history: 'Data history' };
+function go(v) {
+  if (!VIEWS[v]) v = 'overview';
+  S.view = v;
+  $$('.view').forEach(s => s.hidden = s.id !== 'view-' + v);
+  $$('.nav button').forEach(b => b.setAttribute('aria-current', b.dataset.view === v ? 'page' : 'false'));
+  $('#crumb').textContent = VIEWS[v];   window.scrollTo({top:0,behavior:'instant'});
+  render();
+}
+function render() {
+   renderChrome();
+   if (!last()) {
+     if (S.view === 'overview') {
+       $('#heroState').textContent = 'Waiting for live sensor data';
+       $('#heroDetail').textContent = 'Start python -m bridge.runner; verify COM3 is free.';
+       $('#kpis').innerHTML = '<div class="card empty" style="grid-column:1/-1">No real Arduino readings yet. The dashboard does not fabricate data.</div>';
+       $('#chart').innerHTML = '<div class="empty">Waiting for logged sensor measurements.</div>';
+       $('#devices').innerHTML = '<div class="empty">Waiting for firmware data.</div>';
+       $('#events').innerHTML = '<div class="empty">No recorded state changes yet.</div>';
+     } else if (S.view === 'test') renderTest();
+     else renderHistory();
+     return;
+   }
+   if (S.view === 'overview') renderOverview();
+   else if (S.view === 'test') renderTest();
+   else renderHistory();
+}
+
+let toastT;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2200); }
+function download(name, text, type = 'text/plain') {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: type + ';charset=utf-8' }));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+}
+async function copyText(t) {
+  try { await navigator.clipboard.writeText(t); } catch (e) {
+    const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (_) {} ta.remove();
+  }
+}
+function setTheme(t) { document.documentElement.dataset.theme = t; store.set('sentinel.theme', t); $('#themeBtn').innerHTML = ico(t === 'dark' ? 'sun' : 'moon', 18); drawChart(); }
+const stamp = () => { const d = new Date(), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`; };
+
+document.addEventListener('click', async e => {
+  const cap = e.target.closest('[data-cap]');
+  if (cap) return capture(cap.dataset.cap, cap.dataset.label);
+  const row = e.target.closest('.test');
+  if (row && e.target.closest('.chk, .test-title')) {
+    const id = row.dataset.id; checks[id] = !checks[id]; store.set('sentinel.checks', checks);
+    row.classList.toggle('done', !!checks[id]); row.querySelector('.chk').setAttribute('aria-checked', !!checks[id]); updateProgress(); renderTest(); return;
+  }
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  switch (b.dataset.act) {
+    case 'goto': location.hash = b.dataset.view; break;
+    case 'theme': setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'); break;
+    case 'refresh': await poll(); toast('Data refreshed'); break;
+    case 'refreshCloud': await fetchCloud(); toast('Cloud status updated'); break;
+    case 'csv': window.location.href = CONFIG.exportUrl; toast(S.source === 'cloud' ? 'Downloading available cloud readings' : 'Downloading complete local CSV'); break;
+    case 'export': download(`room304-test-report-${stamp()}.txt`, buildReport()); toast('Test report exported'); break;
+    case 'copyvals': await copyText(valuesText()); toast('Current values copied'); break;
+
+  }
+});
+$('#metricSeg').addEventListener('click', e => {
+  const b = e.target.closest('[data-metric]'); if (!b) return;
+  S.metric = b.dataset.metric; $$('#metricSeg button').forEach(x => x.setAttribute('aria-pressed', x === b)); drawChart();
+});
+$('#winSel').addEventListener('change', e => { S.win = +e.target.value; drawChart(); });
+$('#rowSel').addEventListener('change', e => { S.histRows = +e.target.value; renderHistory(); });
+$('#notes').addEventListener('input', e => store.set('sentinel.notes', e.target.value));
+window.addEventListener('hashchange', () => go(location.hash.slice(1)));
+let rz; new ResizeObserver(() => { cancelAnimationFrame(rz); rz = requestAnimationFrame(drawChart); }).observe($('#chart'));
+
+/* ---------- boot ---------- */
+(async function init() {
+  $$('[data-ico]').forEach(el => el.innerHTML = ico(el.dataset.ico, +el.dataset.size || 18));
+  setTheme(store.get('sentinel.theme', 'dark'));
+  $('#notes').value = store.get('sentinel.notes', '');
+  buildDesks(); buildChecklist(); renderCloud();   try { await loadCSV(); } catch (e) { S.mode = 'live'; S.fetchErr = true; }
+  go(location.hash.slice(1));
+  fetchCloud();
+  setInterval(poll, CONFIG.pollMs);
+  setInterval(renderChrome, 1000);
+  setInterval(fetchCloud, 60000);
+})();
+})();
+</script>
+</body>
+</html>
