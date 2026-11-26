@@ -120,7 +120,7 @@ void setup() {
   lastReportMs = millis();
   lastActivityMs = millis();
   soundWindowStartMs = millis();
-  Serial.println(F("INFO,Room304 ready; PIR disabled"));
+  Serial.println(ENABLE_PIR ? F("INFO,Room304 ready; PIR enabled on D7") : F("INFO,Room304 ready; PIR disabled"));
   Serial.println(F("INFO,DATA,temp,humidity,light,sound_span,door_open,expected_empty,alert,pir"));
 }
 
@@ -153,6 +153,7 @@ void loop() {
   bool lightingAlert = expectedEmpty && roomIsBright(light) &&
                        (nowMs - lastActivityMs >= QUIET_PERIOD_MS);
   int alert = sensorFault ? 3 : (lightingAlert ? 2 : (comfortAlert ? 1 : 0));
+
   if (alert == 0) setRgb(false, true, false);       // green
   else if (alert == 1) setRgb(false, false, true);  // blue
   else setRgb(true, false, false);                  // red

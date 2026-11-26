@@ -17,10 +17,9 @@ const byte PIN_LED_B = 10;
 const byte PIN_LIGHT = A0;
 const byte PIN_SOUND = A1;
 
-// PIR remains OFF in this version. No PIR connection is required.
-const bool ENABLE_PIR = false;
 
 // Modules vary; verify their signal states before changing these defaults.
+const bool ENABLE_PIR = true;
 const bool BUTTON_PRESSED_IS_LOW = true;
 const bool REED_CLOSED_IS_LOW = true;
 const bool RGB_COMMON_ANODE = false;
