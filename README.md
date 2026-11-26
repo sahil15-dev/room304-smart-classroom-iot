@@ -1,128 +1,132 @@
+<p align="center"><img src="assets/project%20banner.png" alt="Smart Classroom Sentinel" width="100%"></p>
+
+<h1 align="center">Smart Classroom Sentinel</h1>
+<p align="center"><strong>Room 304 · Smart environment monitoring and possible-energy-waste detection</strong></p>
 <p align="center">
-  <img src="assets/project%20banner.png" alt="Smart Classroom Sentinel - Room 304" width="100%" />
+  <a href="https://smart-classroom-sentinel.onrender.com/">Hosted dashboard</a> ·
+  <a href="docs/02%20Setup%20and%20Operation.md">Setup</a> ·
+  <a href="docs/04%20Calibration%20and%20Verification.md">Calibration</a> ·
+  <a href="docs/05%20Hosting%20and%20Security.md">Deployment</a>
 </p>
 
-# Smart Classroom Sentinel
+A working **Arduino UNO + Python + ThingSpeak + Flask** prototype that observes classroom conditions, logs measurements and flags comfort or possible lighting-waste conditions. The system provides a local RGB LED/buzzer response and a password-protected cloud dashboard with recent readings, trends and history.
 
-**Room 304 · Embedded SW & IoT · Arduino UNO + Python + ThingSpeak + Flask**
+It is an **observational** project: it does not measure energy consumption, count people, record speech, or operate building lighting/HVAC equipment.
 
-A local-first, low-voltage classroom monitoring prototype. Sensor readings are interpreted by an Arduino UNO, logged by a laptop Python bridge, stored in a private ThingSpeak channel and displayed on a read-only web dashboard. The physical RGB LED and buzzer provide local warnings even when the laptop is offline. **No Telegram, Discord, remote mains switching or live audio recordings are required.**
+## Project overview
 
-> **Project state · 23 November 2026:** The USB sensor stream, laptop Python bridge, ThingSpeak updates and local website have been demonstrated. The Mini Reed magnet test, final microphone and light thresholds, and physical LED/buzzer sign-off are still pending the classroom session. PIR is *not installed*; Arduino D7 is reserved and disabled. A hosted Render dashboard is prepared but **has not yet been deployed**.
+<p align="center"><img src="assets/system%20architecture.png" alt="Room 304 sensor-to-cloud architecture" width="100%"></p>
 
-<p align="center"><img src="assets/dashboard%20preview.png" alt="Screenshot of the working local dashboard" width="94%" /></p>
-<p align="center"><i>Development screenshot from real browser testing; numbers are historical and not a live feed inside this README.</i></p>
+| Layer | Implementation | What it does |
+|:--|:--|:--|
+| Sensors | DHT11, photoresistor, analog sound, reed switch, PIR, mode button | Observe classroom environment and activity clues |
+| Embedded | Arduino UNO R3 / PlatformIO | Sample sensors, evaluate warning rules, drive RGB LED and buzzer |
+| Bridge | Python / pyserial | Read USB serial, validate the protocol, write local CSV, upload to ThingSpeak |
+| Cloud | Private ThingSpeak channel | Hold eight timestamped sensor fields |
+| Dashboard | Flask / Render | Serve a read-only, authenticated website with overview, trends, tests and history |
 
-## How it works
+## Dashboard
 
-![Project architecture](assets/system%20architecture.png)
+<p align="center"><img src="assets/dashboard%20preview.png" alt="Screenshot of the deployed Smart Classroom Sentinel overview" width="94%"></p>
+<p align="center"><sub>Actual hosted-dashboard screenshot captured during integration; visible values and labels reflect that point in development, not the current live state.</sub></p>
 
-**Hardware:** DHT11 for indoor temperature/humidity; photoresistor for relative brightness; Big Sound module for relative sound activity; Mini Reed for door state; a pushbutton for the *expected-empty* mode; RGB LED and buzzer for warnings. The microphone outputs a numeric activity span, **not recorded speech or decibels**. The button's expected-empty setting **does not verify physical occupancy**.
+**Hosted site:** [smart-classroom-sentinel.onrender.com](https://smart-classroom-sentinel.onrender.com/) (credentials required). The website remains available when the laptop is off, but **fresh measurements stop until the Arduino and bridge resume**. Cloud refresh is near-real-time, not instant streaming.
 
-**Laptop:** The Arduino sends `DATA,temp,humidity,light,sound_span,door_open,expected_empty,alert,pir` at 9600 baud. `bridge/runner.py` owns the serial port, writes `data/logs/room304 readings.csv` and optionally uploads to ThingSpeak every ~20 seconds.
+### Hardware and alert behavior
 
-**Website:** `dashboard/app.py` serves the same polished website in two modes. `local` reads the laptop CSV, while `cloud` reads ThingSpeak *server-side* and supports deployment on Render. Neither mode sends commands back to the Arduino. The public URL can stay reachable without your laptop, but **new measurements require the Arduino + laptop bridge to be running**.
+| Signal | Pin | Function |
+|:--|:--|:--|
+| Temperature + relative humidity | D2 | DHT11 comfort readings |
+| Door contact | D3 | Reed switch open/close indication |
+| Expected-empty mode | D4 | Local button; operator-selected state, **not proof of vacancy** |
+| Buzzer | D5 | Short local warning sound |
+| RGB LED | D6 / D9 / D10 | Red / green / blue warning display |
+| PIR motion | D7 | Detects motion output, not a headcount |
+| Ambient light | A0 | Relative brightness; current module reads **lower ADC when brighter** |
+| Sound activity | A1 | Analog peak-to-peak span, **not decibels or recorded audio** |
 
-## Verified and pending
+![Alert reference](assets/alert%20reference.png)
 
-| Component | Status as of 23 Nov 2026 |
-| :-- | :-- |
-| Arduino UNO / PlatformIO | Firmware uploaded and emits structured serial readings |
-| Temperature and humidity | Actual readings visible; precision not independently verified |
-| Photoresistor | Responsive, **lower ADC = brighter**; final threshold needs classroom calibration |
-| Microphone | Numeric sound span visible; loud/quiet separation needs final measurement |
-| Mode button | `expected_empty` toggles 0 ↔ 1 in real serial data |
-| Python bridge / ThingSpeak | Confirmed working and sending recent points |
-| Local Flask website | Confirmed displaying actual sensor data and cloud history |
-| Mini Reed | Magnet confirmation pending |
-| RGB LED / buzzer | Physical behavior not fully signed off |
-| Hosted website | Deployment package ready; **not yet live** |
-| PIR on D7 | **Disabled, planned upgrade** |
+- **Green / code 0:** readings inside configured rules.
+- **Blue / code 1:** temperature or humidity outside configured comfort ranges.
+- **Red / code 2:** potential unnecessary lighting *if* the room is marked expected-empty, remains bright and no activity is detected for the configured quiet period.
+- **Red / code 3:** DHT sensor reading fault.
 
-## Run the system locally
+The factory-style starting thresholds in `firmware/Room304/config.h` are configurable and should be evaluated against the physical installation. Activity signals can miss stationary people; a lighting warning is a **prompt to check**, not a definitive energy-waste finding.
 
-Keep the existing VS Code project; do not create a second PlatformIO project. With Arduino connected and PlatformIO Serial Monitor **closed**:
+## Hardware prototype
+
+<p align="center"><img src="assets/hardware%20prototype.jpg" alt="Physical Arduino sensor prototype on a breadboard" width="48%"></p>
+<p align="center"><sub>Photograph of the assembled Arduino sensor prototype during development.</sub></p>
+
+## Quick start
+
+**Requirements:** Arduino UNO with the wired sensors; Python 3.10+; PlatformIO (Arduino firmware); USB serial port; optional ThingSpeak channel for cloud mode.
+
+1. Build/upload `firmware/Room304/Room304.ino` using `platformio.ini` and check the correct COM port.
+2. Install dependencies and configure the local `.env` from `.env.example` (private keys must never be committed).
 
 ```powershell
 python -m pip install -r requirements.txt -r dashboard/requirements.txt
-if (-not (Test-Path .env)) { Copy-Item .env.example .env }
-# Enter your COM port and private ThingSpeak keys in local .env.
-python -m unittest discover -s tests -v
+Copy-Item .env.example .env
+# Set ROOM304_PORT and, for cloud uploads, THINGSPEAK_WRITE_KEY in .env.
 ```
 
-**Terminal 1** — the only process that opens COM3 (or your actual USB port):
+3. **Close PlatformIO Serial Monitor**, then start the bridge:
 
 ```powershell
 python -m bridge.runner
 ```
 
-**Terminal 2** — website, using the same private `.env`:
+4. To use the local dashboard, set `DASHBOARD_DATA_SOURCE=local` in `.env` and start a second terminal:
 
 ```powershell
 python -m dashboard.app
 ```
 
-Open **http://127.0.0.1:5000**. Set `DASHBOARD_DATA_SOURCE=local` in `.env` for live laptop CSV readings. A stale/offline badge means the logged data is old; the website does not invent measurements. See [Local web guide](docs/07%20Local%20Web%20Dashboard.md).
+Visit `http://127.0.0.1:5000`. For the already-hosted site, the Flask process is not needed on the laptop; the bridge supplies fresh readings to ThingSpeak.
 
-## Put the website online and auto-update from GitHub
+For no-hardware protocol testing: `python -m bridge.runner --simulate` creates **clearly labeled simulated local data**, not cloud or physical test evidence.
 
-![Deployment modes](assets/deployment%20architecture.png)
+## Documentation
 
-This repository includes **`render.yaml`** for a **read-only hosted Flask service** that uses your private ThingSpeak **Read API Key**. The same site is displayed online, and pushing to the connected GitHub branch can automatically redeploy it. The Render service does **not** run the USB Python bridge. The existing local dashboard and offline Arduino alarms are unchanged.
+| Document | Contents |
+|:--|:--|
+| [Hardware and wiring](docs/01%20Hardware%20and%20Wiring.md) | Modules, pinout, voltage and electrical safety |
+| [Setup and operation](docs/02%20Setup%20and%20Operation.md) | Installation, bridge, local dashboard and troubleshooting |
+| [Protocol and architecture](docs/03%20Protocol%20and%20Architecture.md) | Serial format, cloud mapping, alert logic and timing |
+| [Calibration and verification](docs/04%20Calibration%20and%20Verification.md) | Physical tests, thresholds and known measurement constraints |
+| [Hosting and security](docs/05%20Hosting%20and%20Security.md) | Render settings, credentials and deployment architecture |
+| [Design limits](docs/06%20Scope%20and%20Limitations.md) | Explicit scope, trade-offs and safety constraints |
+| [Demo guide](docs/07%20Demonstration.md) | Reproducible demonstrations and evidence expectations |
 
-1. Push this repository to your existing private GitHub repo (do not commit `.env`).
-2. At [Render](https://dashboard.render.com/), create a new **Blueprint** from that specific GitHub repository, which picks up `render.yaml`.
-3. Supply **`THINGSPEAK_CHANNEL_ID`** and **`THINGSPEAK_READ_KEY`** as Render environment variables—not GitHub files. `DASHBOARD_DATA_SOURCE=cloud` is configured automatically.
-4. Optionally add `DASHBOARD_ACCESS_PASSWORD` on Render to restrict the website with a browser password prompt.
-5. After the deployment succeeds, add the real `https://....onrender.com` URL to the repository's **About → Website** field and replace the placeholder in [Online Deployment](docs/11%20Online%20Deployment.md).
+## Testing
 
-> Free Render instances may sleep after inactivity and wake on a new visit. For strict *always-on* access, choose an appropriate paid plan. Cloud history remains visible when the laptop is offline but will be **stale** until the bridge uploads again. Hosted downloads include *available cloud samples*, while local mode exports the complete local CSV.
+The repository includes offline protocol, dashboard and access-control tests and a GitHub Actions workflow.
 
-**Full deployment instructions:** [11 Online Deployment](docs/11%20Online%20Deployment.md).
-
-## Hardware and software details
-
-![Pin assignments](assets/pin%20map.png)
-
-| UNO input/output | Function |
-| :-- | :-- |
-| D2 | DHT11 data |
-| D3 | Mini Reed signal |
-| D4 | Mode button signal |
-| D5 | Active buzzer |
-| D6 / D9 / D10 | RGB red / green / blue |
-| D7 | Reserved PIR, **disabled** |
-| A0 | Photoresistor analog signal |
-| A1 | Big Sound **AO** (not DO) |
-
-All compatible modules share rated 5V and common GND. A bare RGB LED requires separate current-limiting resistors. Verify each actual sensor module's pin labels before wiring. **Never connect to classroom mains, HVAC or building lighting circuits.**
-
-![Alert reference](assets/alert%20reference.png)
-
-## Repository map
-
-```text
-room304 smart classroom iot/
-├── assets/                       # Editable SVGs, PNG previews and dashboard screenshot
-├── bridge/                       # Arduino serial -> validation -> CSV -> ThingSpeak
-├── dashboard/                    # Flask website, HTML, optional Dockerfile
-├── docs/                         # Wiring, test plan, deployment and handoff
-├── firmware/Room304/             # PlatformIO Arduino sketch and config
-├── tests/                        # Offline Python regression tests
-├── .github/workflows/verify.yml  # CI tests on pushes and pull requests
-├── .env.example                  # Placeholder values only; no real keys
-├── .gitignore                    # Ignores .env, logs, local builds
-├── platformio.ini
-├── render.yaml                   # Optional cloud deployment with auto-deploy
-├── requirements.txt
-└── README.md
+```powershell
+python -m unittest discover -s tests -v
 ```
 
-## Testing and presentation evidence
+Offline tests verify software behavior; they do not establish the accuracy or reliability of physical sensors. Recorded classroom readings and the hosted integration were observed during development; calibration evidence should accompany claims about sound sensitivity or occupancy-related alerts.
 
-The **Test & Calibrate** page provides a manual checklist and notes. **Data History** supports scrolling and export. Save real classroom photographs, sensor threshold measurements, a test report and ThingSpeak screenshots to your local evidence folder; publish only sanitized, permission-approved screenshots. The included GitHub Actions workflow runs offline Python tests but **does not count as physical validation**.
+## Repository layout
 
-- [Wiring and safety](docs/01%20Wiring%20and%20Safety.md) · [Complete build](docs/02%20Complete%20Build%20Guide.md) · [Cloud fields and alerts](docs/03%20Cloud%20and%20Alerts.md)
-- [Test plan](docs/04%20Test%20Plan%20and%20Results.md) · [Progress](docs/05%20Progress%20and%20Next%20Steps.md) · [Repository handoff](docs/12%20Repository%20Handoff.md)
+```text
+assets/                  Visual identity, diagrams (SVG and PNG), dashboard screenshot
+bridge/                  USB serial bridge and protocol validation
+dashboard/               Flask server, hosted dashboard UI, Dockerfile
+docs/                    Final project documentation
+firmware/Room304/        Arduino sketch and configuration
+.github/workflows/       Automated Python checks
+tests/                   Offline regression tests
+platformio.ini            PlatformIO UNO configuration
+render.yaml              Render hosted-service definition
+.env.example             Public config template; actual secrets stay in .env
+```
 
-**Privacy and scope:** Keep `.env` and live logs out of source control. A publicly accessible hosted dashboard exposes the *displayed room data*, even if the ThingSpeak channel itself is private; use `DASHBOARD_ACCESS_PASSWORD` if needed and obtain permission before showing classroom data publicly. A live website is a monitoring view, not a remote controller or verified occupancy detector.
+## Privacy and safety
+
+The ThingSpeak **Write API key** is used only by the laptop bridge; the hosted dashboard uses the **Read API key** on the server. Password protection applies to the website, not to repository access. Public source code never requires publishing private keys, student IDs, user credentials or personal data.
+
+All wiring is low-voltage. The system does not connect to or control mains-powered classroom equipment. See [Hosting and Security](docs/05%20Hosting%20and%20Security.md) and [Scope and Limitations](docs/06%20Scope%20and%20Limitations.md).

@@ -1,7 +1,7 @@
 name: Verify project
 on:
   push:
-    branches: [main]
+    branches: [main, production]
   pull_request:
   workflow_dispatch:
 jobs:
