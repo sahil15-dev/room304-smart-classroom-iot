@@ -31,6 +31,7 @@ FIELDS = ('temperature_c', 'humidity_percent', 'light', 'sound_span',
           'door_open', 'expected_empty', 'alert_code', 'pir_motion')
 FIELDNAMES = ('timestamp_utc',) + FIELDS
 _cloud_cache: dict = {'fetched': 0.0, 'data': None, 'channel': None}
+_cloud_recent_cache: dict = {'fetched': 0.0, 'data': None, 'channel': None}
 _cloud_lock = threading.Lock()
 
 
@@ -146,7 +147,7 @@ def build_events(history: list[dict], limit: int = 8) -> list[dict]:
     return events[-limit:][::-1]
 
 
-def cloud_feed(force: bool = False) -> dict:
+def cloud_feed(force: bool = False, recent: bool = False) -> dict:
     """Read ONLY: server-side ThingSpeak Read API key never reaches the browser."""
     channel_id = os.getenv('THINGSPEAK_CHANNEL_ID', '').strip()
     read_key = os.getenv('THINGSPEAK_READ_KEY', '').strip()
@@ -154,14 +155,18 @@ def cloud_feed(force: bool = False) -> dict:
         return {'configured': False, 'feeds': [], 'message': 'Configure THINGSPEAK_CHANNEL_ID on the server.'}
     if not channel_id.isdecimal():
         return {'configured': False, 'feeds': [], 'message': 'Channel ID must be numeric.'}
+    # A small, fast feed serves the overview; the full feed is requested only
+    # for Data History and CSV download. Never cache secret keys in responses.
+    cache = _cloud_recent_cache if recent else _cloud_cache
+    ttl_seconds = 10 if recent else 25
     with _cloud_lock:
-        if (not force and _cloud_cache['data'] is not None
-                and _cloud_cache['channel'] == channel_id
-                and time.monotonic() - _cloud_cache['fetched'] < 25):
-            return _cloud_cache['data']
+        if (not force and cache['data'] is not None
+                and cache['channel'] == channel_id
+                and time.monotonic() - cache['fetched'] < ttl_seconds):
+            return cache['data']
     try:
         import requests
-        params = {'results': 800}  # Supports the 480-row history view.
+        params = {'results': 160 if recent else 800}  # Short overview; full history on demand.
         if read_key:
             params['api_key'] = read_key
         response = requests.get(f'https://api.thingspeak.com/channels/{channel_id}/feeds.json',
@@ -181,7 +186,7 @@ def cloud_feed(force: bool = False) -> dict:
         result = {'configured': True, 'feeds': [],
                   'message': 'Cloud feed unavailable. Verify the Channel ID, private Read key and internet.'}
     with _cloud_lock:
-        _cloud_cache.update(fetched=time.monotonic(), data=result, channel=channel_id)
+        cache.update(fetched=time.monotonic(), data=result, channel=channel_id)
     return result
 
 
@@ -207,12 +212,13 @@ def current_user():
 @app.get('/api/live')
 def live():
     source = data_source()
+    recent = request.args.get('recent') == '1'
     if source == 'cloud':
-        cloud = cloud_feed()
+        cloud = cloud_feed(recent=True) if recent else cloud_feed()
         history = cloud['feeds']
         message = cloud['message']
     else:
-        history = recent_readings()
+        history = recent_readings(limit=160 if recent else 800)
         message = 'Local CSV from the USB Python bridge'
     latest = history[-1] if history else None
     age = age_seconds(latest) if latest else None
@@ -227,7 +233,7 @@ def live():
 
 @app.get('/api/cloud')
 def cloud():
-    return jsonify(cloud_feed(force=request.args.get('refresh') == '1'))
+    return jsonify(cloud_feed(force=request.args.get('refresh') == '1', recent=True))
 
 
 def csv_bytes(readings: list[dict]) -> bytes:

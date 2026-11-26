@@ -386,7 +386,7 @@ html,body{overflow-x:hidden;overflow-y:auto}
         <div class="legend" id="heroLegend"></div>
       </div>
       <figure class="plan-wrap">
-        <svg id="plan" viewBox="0 0 520 330" role="img" aria-label="Schematic floor plan of Room 304 showing the Arduino UNO, sensor hub, mini reed, mode button, RGB LED and desks">
+        <svg id="plan" viewBox="0 0 520 330" role="img" aria-label="Schematic floor plan of Room 304 showing the Arduino UNO, sensor hub, mini reed, PIR motion, mode button, RGB LED and desks">
           <defs>
             <pattern id="pgrid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" style="stroke:var(--line)" stroke-width="1"/></pattern>
             <linearGradient id="cone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--c-light);stop-opacity:.6"/><stop offset="1" style="stop-color:var(--c-light);stop-opacity:0"/></linearGradient>
@@ -416,8 +416,8 @@ html,body{overflow-x:hidden;overflow-y:auto}
           <rect x="12" y="138" width="16" height="24" rx="5" style="fill:var(--c-hum)"/>
           <text x="36" y="154" class="pl-label">Mode button, D4</text>
           <!-- PIR -->
-          <circle cx="500" cy="78" r="9" fill="none" style="stroke:var(--dim)" stroke-width="2" stroke-dasharray="3 3"/>
-          <text x="484" y="82" text-anchor="end" class="pl-label dim">PIR, D7 (not installed)</text>
+          <circle id="planPir" cx="500" cy="78" r="9" fill="none" style="stroke:var(--info)" stroke-width="2"/>
+          <text x="484" y="82" text-anchor="end" class="pl-label">PIR motion, D7</text>
           <!-- LED -->
           <g id="planLed" style="color:var(--ok)">
             <circle cx="500" cy="262" r="24" fill="currentColor" opacity=".28" style="filter:blur(7px)"/>
@@ -477,7 +477,7 @@ html,body{overflow-x:hidden;overflow-y:auto}
         <p class="card-note" style="margin-bottom:16px">Tick a test only after you have personally verified the actual hardware response. Your ticks and notes stay in this browser, not on the Arduino.</p>
         <div class="prog" id="prog"></div>
         <div id="tests"></div>
-        <p class="test-foot">The PIR sensor is intentionally left out. The reed switch test can be finished later with a magnet.</p>
+        <p class="test-foot">PIR status is an observed digital signal, not a reliable count of people. Verify it with a walk-by test after the warm-up period.</p>
       </div>
       <div class="stack">
         <div class="card"><div class="card-head"><h2>Live readings</h2><span class="chip plain">Updates every 3 seconds</span></div><div class="live4" id="live4"></div></div>
@@ -513,7 +513,7 @@ html,body{overflow-x:hidden;overflow-y:auto}
       </div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Time</th><th>Temp °C</th><th>Humidity %</th><th>Light (lower is brighter)</th><th>Sound span</th><th>Door</th><th>Expected empty</th><th>Alert</th></tr></thead>
+          <thead><tr><th>Time</th><th>Temp °C</th><th>Humidity %</th><th>Light (lower is brighter)</th><th>Sound span</th><th>Door</th><th>Expected empty</th><th>PIR</th><th>Alert</th></tr></thead>
           <tbody id="rows"></tbody>
         </table>
       </div>
@@ -535,8 +535,8 @@ html,body{overflow-x:hidden;overflow-y:auto}
     All ThingSpeak keys stay in your private .env file, never in HTML or JS.
     ===================================================================== */
  const CONFIG = {
-   liveUrl: '/api/live', cloudUrl: '/api/cloud', exportUrl: '/api/export.csv',
-   pollMs: 3000, staleAfterSec: 20, maxKeep: 800,
+   liveUrl: '/api/live?recent=1', fullUrl: '/api/live', cloudUrl: '/api/cloud', exportUrl: '/api/export.csv',
+   pollMs: 5000, staleAfterSec: 90, maxKeep: 800,
    targets: { temp: [18, 28], hum: [30, 70] },
    lightVisualRange: { darkAdc: 790, brightAdc: 110 },
    alertLabels: { 0: 'Normal conditions', 1: 'Comfort warning', 2: 'Lighting warning', 3: 'DHT sensor fault' }
@@ -583,7 +583,7 @@ const T = CONFIG.targets;
 const S = {
    samples: [], mode: 'connecting', fetchErr: false,
    view: 'overview', metric: 'temp', win: 120, histRows: 20,
-   cloud: { state: 'idle' }
+   cloud: { state: 'idle' }, source: 'local'
 };
 const checks = store.get('sentinel.checks', {});
 // Display-only intensity based on observed ADC endpoints (lower ADC = brighter).
@@ -624,11 +624,22 @@ const METRICS = {
    };
  }
  async function loadCSV() {
-   const response = await fetch(CONFIG.liveUrl, { cache: 'no-store' });
+   // Overview and Test use recent samples. Fetch the full 800 only on History.
+   const url = S.view === 'history' ? CONFIG.fullUrl : CONFIG.liveUrl;
+   const response = await fetch(url, { cache: 'no-store' });
    if (!response.ok) throw new Error('Live API HTTP ' + response.status);
    const payload = await response.json();
-   S.samples = (payload.history || []).map(normaliseSample).filter(x => x.t).slice(-CONFIG.maxKeep);
+   const samples = (payload.history || []).map(normaliseSample).filter(x => x.t).slice(-CONFIG.maxKeep);
+   const oldLast = last();
+   const newLast = samples[samples.length - 1];
+   const changed = samples.length !== S.samples.length ||
+     (newLast?.t?.getTime() ?? 0) !== (oldLast?.t?.getTime() ?? 0) ||
+     (samples[0]?.t?.getTime() ?? 0) !== (S.samples[0]?.t?.getTime() ?? 0) ||
+     (newLast?.alert ?? null) !== (oldLast?.alert ?? null);
+   S.samples = changed ? samples : S.samples;
+   S.source = payload.source || 'local';
    S.mode = 'live'; S.fetchErr = false;
+   return changed;
  }
  async function fetchCloud() {
    try {
@@ -652,10 +663,21 @@ const METRICS = {
    }
    renderCloud(); renderChrome();
  }
+ let pollInFlight = false;
  async function poll() {
-   try { await loadCSV(); }
-   catch (e) { S.fetchErr = true; }
-   render();
+   if (pollInFlight) return; // Don't queue requests when Render is waking up.
+   pollInFlight = true;
+   const wasUnavailable = S.fetchErr;
+   try {
+     const changed = await loadCSV();
+     if (changed || wasUnavailable) render();
+     else renderChrome(); // Only the age indicator changes between uploads.
+   } catch (e) {
+     S.fetchErr = true;
+     if (!wasUnavailable) render(); else renderChrome();
+   } finally {
+     pollInFlight = false;
+   }
  }
 
 /* =====================================================================
@@ -666,9 +688,11 @@ const METRICS = {
    if (S.fetchErr) return { tone: 'bad', text: 'Data feed unavailable' };
    if (!L) return { tone: 'warn', text: 'Waiting for Arduino' };
    const age = (Date.now() - L.t.getTime()) / 1000;
-   if (age <= CONFIG.staleAfterSec) return { tone: 'ok', text: 'Live, recent data' };
-   if (age <= 120) return { tone: 'warn', text: 'Delayed data' };
-   return { tone: 'bad', text: 'No recent data' };
+   // ThingSpeak receives data every ~20s; cloud reads/caching add delay.
+   const recentWindow = S.source === 'cloud' ? CONFIG.staleAfterSec : 20;
+   if (age <= recentWindow) return { tone: 'ok', text: S.source === 'cloud' ? 'Recent cloud data' : 'Live, recent data' };
+   if (age <= 300) return { tone: 'warn', text: 'Delayed sensor data' };
+   return { tone: 'bad', text: 'No recent sensor data' };
  }
 
 function alertInfo(code) {
@@ -691,6 +715,8 @@ function computeEvents() {
     const a = s[i - 1], b = s[i];
     if (a.door != null && b.door != null && a.door !== b.door)
       ev.push({ t: b.t, icon: 'door', tone: 'info', title: b.door ? 'Door reported open' : 'Door reported closed', sub: 'Mini Reed on D3, value ' + b.door });
+    if (a.pir != null && b.pir != null && a.pir !== b.pir)
+      ev.push({ t: b.t, icon: 'radar', tone: 'info', title: b.pir ? 'PIR reported motion' : 'PIR motion signal cleared', sub: 'Digital signal from D7; verify with walk-by test' });
     if (a.empty != null && b.empty != null && a.empty !== b.empty)
       ev.push({ t: b.t, icon: 'users', tone: 'ok', title: b.empty ? 'Mode changed to expected empty' : 'Mode changed to expected occupied', sub: 'Classroom mode button on D4' });
     if (a.alert != null && b.alert != null && a.alert !== b.alert) {
@@ -706,6 +732,7 @@ const rangeOf = k => { const v = S.samples.map(d => d[k]).filter(x => x != null)
 /* =====================================================================
    RENDER: chrome (header, pill, pipeline)
    ===================================================================== */
+ let lastPipelineMarkup = '';
  function renderChrome() {
    const L = last(), live = liveState();
    const pill = $('#livePill'); pill.dataset.tone = live.tone; $('#liveText').textContent = live.text;
@@ -716,11 +743,15 @@ const rangeOf = k => { const v = S.samples.map(d => d[k]).filter(x => x != null)
    const cloudSub = {ok:'Recent cloud history',stale:'Cloud readings delayed',unconfigured:'Not configured',error:'Unavailable',idle:'Checking'}[S.cloud.state] || 'Checking';
    const steps = [
      { name:'Arduino UNO',sub: L ? 'Reported sensor readings' : 'Waiting for sensors',tone:live.tone },
-     { name:'Python bridge',sub: S.fetchErr ? 'Dashboard API unreachable' : L ? 'Local CSV logging' : 'No samples yet',tone:live.tone },
+     { name:'Python bridge',sub: S.fetchErr ? 'Dashboard API unreachable' : L ? (S.source === 'cloud' ? 'Last uploaded reading' : 'Local CSV logging') : 'No samples yet',tone:live.tone },
      { name:'ThingSpeak',sub:cloudSub,tone:cloudTone }
    ];
-   $('#pipeline').innerHTML = '<div class="pl-title">Data pipeline</div>' +
+   const pipelineHtml = '<div class="pl-title">Data pipeline</div>' +
      steps.map(s=>`<div class="pl-step" data-tone="${s.tone}"><span class="pl-dot"></span><div><div class="pl-name">${s.name}</div><div class="pl-sub">${s.sub}</div></div></div>`).join('');
+  if (pipelineHtml !== lastPipelineMarkup) {
+    $('#pipeline').innerHTML = pipelineHtml;
+    lastPipelineMarkup = pipelineHtml;
+  }
    $('#footTime').textContent = 'Refreshed ' + fmtTime(new Date());
  }
 
@@ -785,6 +816,7 @@ function renderHero() {
   $('#heroLegend').innerHTML = [
     `<span class="chip plain"><i style="--c:var(--info)"></i>Door reported ${L.door == null ? 'unknown' : open ? 'open' : 'closed'}</span>`,
     `<span class="chip plain"><i style="--c:var(--c-hum)"></i>Expected ${occ ? 'occupied' : 'empty'}</span>`,
+    `<span class="chip plain"><i style="--c:var(--info)"></i>PIR ${L.pir === 1 ? 'Motion' : L.pir === 0 ? 'No motion reported' : 'No reading'}</span>`,
     `<span class="chip plain"><i style="--c:${a.color}"></i>Expected LED ${a.name}</span>`,
     `<span class="chip plain"><i></i>${S.samples.length} samples held</span>`
   ].join('');
@@ -794,6 +826,7 @@ function renderHero() {
   $('#planLed').style.color = a.color;
   $('#planDoor').setAttribute('transform', open ? 'rotate(62 20 276)' : 'rotate(0 20 276)');
   $('#planArc').style.opacity = open ? 1 : 0;
+  $('#planPir').style.fill = L.pir === 1 ? 'var(--info)' : 'none';
   // The original top-center cone changes in ~14% intensity steps and fades
   // smoothly between steps. The rest of the classroom never gets a light wash.
   $('#planCone').setAttribute('opacity', (lightVisualLevel(L.light) * 0.84).toFixed(3));
@@ -821,7 +854,7 @@ function renderDevices() {
     { icon: 'users', name: 'Classroom mode', meta: 'Physical button on D4', state: L.empty ? 'Expected empty' : 'Expected occupied',
       note: 'Expected state, not confirmed occupancy', tone: 'ok' },
     { icon: 'bulb', name: 'Local alert', meta: 'RGB LED and buzzer', state: a.label, note: 'Firmware code ' + (L.alert ?? '–') + ' · verify hardware visually', tone: a.tone },
-    { icon: 'radar', name: 'PIR motion sensor', meta: 'Reserved pin D7', state: 'Not installed', note: 'Disabled in firmware', tone: '', off: true }
+    { icon: 'radar', name: 'PIR motion sensor', meta: 'Digital input D7', state: L.pir == null ? 'No reading' : L.pir === 1 ? 'Motion detected' : 'No motion reported', note: 'Verify sensor wiring and warm-up in classroom', tone: L.pir === 1 ? 'info' : 'ok' }
   ];
   $('#devices').innerHTML = devs.map(d => `<div class="dev${d.off ? ' off' : ''}" data-tone="${d.tone}">
       <span class="dev-ico">${ico(d.icon, 20)}</span>
@@ -917,8 +950,8 @@ function drawChart() {
   const avg = series.reduce((a, b) => a + b, 0) / n, d1 = S.metric === 'temp' ? 1 : (S.metric === 'hum' ? 1 : 0);
   $('#trendStats').innerHTML = [['Latest', series[n - 1]], ['Lowest', Math.min(...series)], ['Average', avg], ['Highest', Math.max(...series)]]
     .map(([l, v]) => `<div class="tstat"><span>${l}</span><b>${v.toFixed(d1)} <small class="muted" style="font:600 12px var(--body)">${m.unit}</small></b></div>`).join('');
-  $('#trendFoot').textContent = `${m.label}, ${n} local samples, ${m.unit}`;
-  $('#trendRefresh').textContent = `Refreshes every ${CONFIG.pollMs / 1000} seconds`;
+  $('#trendFoot').textContent = `${m.label}, ${n} ${S.source === 'cloud' ? 'cloud' : 'local'} samples, ${m.unit}`;
+  $('#trendRefresh').textContent = `Checks every ${CONFIG.pollMs / 1000} seconds`;
 }
 
 function renderOverview() { renderHero(); renderKPIs(); drawChart(); renderDevices(); renderEvents(); }
@@ -930,6 +963,7 @@ const TESTS = [
   { id: 'th',    title: 'Temperature and humidity', desc: 'Let the sensor stabilise, then compare the live values with a reasonable indoor reference.', cap: [['Snapshot', 'th']] },
   { id: 'light', title: 'Light sensor', desc: 'Compare covered, room lighting and a flashlight. A lower value should mean brighter.', cap: [['Dark', 'light'], ['Room lighting', 'light'], ['Flashlight', 'light']] },
   { id: 'mic',   title: 'Microphone', desc: 'Compare a quiet room against repeated clapping and confirm the sound span rises.', cap: [['Quiet', 'sound'], ['Clapping peak', 'peak']] },
+  { id: 'pir',   title: 'PIR motion on D7', desc: 'Wait for PIR warm-up, remain still until output is LOW, then walk in front of it. Confirm motion changes 0 to 1 and back.', cap: [['Motion', 'pir']] },
   { id: 'door',  title: 'Mini Reed door input', desc: 'Move a magnet toward and away from the reed switch. Confirm the value changes between 0 and 1.', cap: [['Magnet near', 'door'], ['Magnet far', 'door']] },
   { id: 'mode',  title: 'Classroom mode button', desc: 'Press once and check that expected-empty mode changes, then switch it back.', cap: [] },
   { id: 'led',   title: 'RGB LED and buzzer', desc: 'Confirm green for normal, blue for a comfort warning, red for a lighting warning, and the buzzer.', cap: [] },
@@ -942,10 +976,11 @@ function evidence(id) {
     case 'th':    return `Now ${fmt(L.temp, 1)} °C and ${fmt(L.hum, 0)} %`;
     case 'light': { const r = rangeOf('light'); return r ? `Seen in log: ${r[0]} to ${r[1]}` : 'No readings'; }
     case 'mic':   { const r = rangeOf('sound'); return r ? `Seen in log: ${r[0]} to ${r[1]}` : 'No readings'; }
+    case 'pir':   return `Now ${L.pir ?? '–'}, ${transitions('pir')} changes in log`;
     case 'door':  return `Now ${L.door ?? '–'}, ${transitions('door')} changes in log`;
     case 'mode':  return `Now ${L.empty ? 'expected empty' : 'expected occupied'}, ${transitions('empty')} changes in log`;
     case 'led':   return `Alert code ${L.alert ?? '–'}, ${transitions('alert')} changes in log`;
-    case 'cloud': return `${S.cloud.count ?? 0} cloud points, ${S.samples.length} local samples`;
+    case 'cloud': return `${S.cloud.count ?? 0} recent cloud points, ${S.samples.length} samples loaded`;
   }
   return '';
 }
@@ -977,8 +1012,9 @@ function renderTest() {
   const rows = [
     ['Arduino data feed', live.tone, live.text],
     ['Age of latest reading', age == null ? 'warn' : age <= CONFIG.staleAfterSec ? 'ok' : 'warn', age == null ? '–' : Math.round(age) + ' seconds'],
-    ['Recent local samples', 'info', String(S.samples.length)],
+    ['Samples loaded', 'info', String(S.samples.length)],
     ['Light direction', 'info', 'Lower value = brighter'],
+    ['PIR motion, D7', L.pir === 1 ? 'info' : 'ok', L.pir == null ? 'No reading' : L.pir ? 'Motion detected' : 'No motion reported'],
     ['Door switch verification', checks.door ? 'ok' : 'warn', checks.door ? 'Verified' : 'Test with a magnet'],
     ['ThingSpeak', ct[0], ct[1]]
   ];
@@ -991,14 +1027,14 @@ function valuesText() {
   const a = alertInfo(L.alert);
    return [`Sample time: ${fmtTime(L.t)}`, `Temperature: ${fmt(L.temp, 1)} °C`, `Humidity: ${fmt(L.hum, 0)} %`,
     `Light: ${fmt(L.light, 0)} / 1023 (lower is brighter)`, `Sound span: ${fmt(L.sound, 0)}`,
-    `Door input (unverified): ${L.door ?? '–'} (${L.door == null ? 'unknown' : L.door ? 'reported open' : 'reported closed'})`, `Expected empty: ${L.empty ?? '–'}`, `Alert: ${L.alert ?? '–'} (${a.label})`].join('\n');
+    `Door input (unverified): ${L.door ?? '–'} (${L.door == null ? 'unknown' : L.door ? 'reported open' : 'reported closed'})`, `Expected empty: ${L.empty ?? '–'}`, `PIR motion: ${L.pir ?? '–'}`, `Alert: ${L.alert ?? '–'} (${a.label})`].join('\n');
 }
 function buildReport() {
   const n = TESTS.filter(t => checks[t.id]).length;
   return [`${'Smart Classroom Sentinel'}: Room 304 test report`, `Generated: ${new Date().toLocaleString()}`,
     `Data source: Python bridge CSV through /api/live (real sensors only)`, '',
     'CHECKLIST', ...TESTS.map(t => `[${checks[t.id] ? 'x' : ' '}] ${t.title} - ${evidence(t.id)}`),
-    `${n} of ${TESTS.length} tests verified (PIR intentionally excluded)`, '', 'LATEST VALUES', valuesText(), '',
+    `${n} of ${TESTS.length} tests verified (PIR test included)`, '', 'LATEST VALUES', valuesText(), '',
     'NOTES', ($('#notes').value.trim() || '(none)')].join('\n');
 }
 
@@ -1010,6 +1046,7 @@ function capture(kind, label) {
   else if (kind === 'sound') line = `Sound, ${label.toLowerCase()}: ${L.sound}`;
   else if (kind === 'peak') line = `Sound, clapping peak over last 10 samples: ${Math.max(...S.samples.slice(-10).map(d => d.sound ?? 0))}`;
   else if (kind === 'door') line = `Door input, ${label.toLowerCase()}: ${L.door}`;
+  else if (kind === 'pir') line = `PIR motion ${label.toLowerCase()}: ${L.pir} (D7)`;
   const ta = $('#notes'); ta.value += (ta.value && !ta.value.endsWith('\n') ? '\n' : '') + `[${fmtTime(L.t)}] ${line}\n`;
   store.set('sentinel.notes', ta.value); toast('Added to your notes');
 }
@@ -1023,8 +1060,8 @@ function renderHistory() {
   const chipE = v => v == null ? '–' : `<span class="chip plain">${v} ${v ? 'empty' : 'occupied'}</span>`;
   const chipA = v => { if (v == null) return '–'; const a = alertInfo(v); return `<span class="chip" data-tone="${a.tone}">${v} ${a.label}</span>`; };   $('#rows').innerHTML = rows.length ? rows.map(d => {
     const tw = d.temp != null && (d.temp < T.temp[0] || d.temp > T.temp[1]), hw = d.hum != null && (d.hum < T.hum[0] || d.hum > T.hum[1]);
-    return `<tr><td class="t">${fmtTime(d.t)}</td><td class="${tw ? 'warn' : ''}">${fmt(d.temp, 1)}</td><td class="${hw ? 'warn' : ''}">${fmt(d.hum, 1)}</td><td>${fmt(d.light, 0)}</td><td>${fmt(d.sound, 0)}</td><td>${chipD(d.door)}</td><td>${chipE(d.empty)}</td><td>${chipA(d.alert)}</td></tr>`;   }).join('') : '<tr><td colspan="8" class="empty">No logged readings yet. Start the Python bridge.</td></tr>';
-   $('#histSub').textContent = `Most recent ${rows.length} rows from your local CSV · scroll inside the table to see more`;
+    return `<tr><td class="t">${fmtTime(d.t)}</td><td class="${tw ? 'warn' : ''}">${fmt(d.temp, 1)}</td><td class="${hw ? 'warn' : ''}">${fmt(d.hum, 1)}</td><td>${fmt(d.light, 0)}</td><td>${fmt(d.sound, 0)}</td><td>${chipD(d.door)}</td><td>${chipE(d.empty)}</td><td><span class="chip plain">${d.pir == null ? '–' : d.pir ? '1 motion' : '0 idle'}</span></td><td>${chipA(d.alert)}</td></tr>`;   }).join('') : '<tr><td colspan="9" class="empty">No logged readings yet. Start the Python bridge.</td></tr>';
+   $('#histSub').textContent = `Most recent ${rows.length} ${S.source === 'cloud' ? 'cloud' : 'local'} readings · scroll inside the table to see more`;
   const win = S.samples.slice(-S.histRows);
   const st = (k, d, label, color) => {
     const v = win.map(x => x[k]).filter(x => x != null);
@@ -1046,6 +1083,9 @@ function go(v) {
   $$('.nav button').forEach(b => b.setAttribute('aria-current', b.dataset.view === v ? 'page' : 'false'));
   $('#crumb').textContent = VIEWS[v];   window.scrollTo({top:0,behavior:'instant'});
   render();
+  // The history view requests the full feed once, instead of bringing 800
+  // records into every overview poll. Another poll refreshes it while open.
+  if (v === 'history') void poll();
 }
 function render() {
    renderChrome();
