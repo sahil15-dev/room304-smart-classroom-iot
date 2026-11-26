@@ -24,5 +24,4 @@ Thumbs.db
 .vscode/*.log
 
 # Local-only workspace notes and temporary test output
-AGENTS.md
 test results.txt
