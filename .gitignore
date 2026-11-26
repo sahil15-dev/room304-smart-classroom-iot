@@ -28,5 +28,4 @@ Thumbs.db
 *.bak
 
 # Local-only assistant/development instructions (not needed in public repo)
-AGENTS.md
 docs/GitHub VS Code Codex Guide.md
