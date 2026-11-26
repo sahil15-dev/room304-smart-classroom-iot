@@ -54,6 +54,14 @@ It is an **observational** project: it does not measure energy consumption, coun
 
 The factory-style starting thresholds in `firmware/Room304/config.h` are configurable and should be evaluated against the physical installation. Activity signals can miss stationary people; a lighting warning is a **prompt to check**, not a definitive energy-waste finding.
 
+## Complete wiring blueprint
+
+![Room 304 complete wiring diagram](assets/wiring%20blueprint.png)
+
+The [editable Cirkit Designer circuit](assets/room%20304%20circuit.ckt) is included alongside the exported diagram. It documents the Arduino UNO R3, breadboard, DHT11, reed switch, pushbutton, buzzer, RGB LED, PIR, light sensor and analog sound sensor in the physical prototype. The connections correspond to the pin assignments in [`config.h`](firmware/Room304/config.h). Verify actual module labels and polarity before wiring, as module pin orders can differ.
+
+**DHT11 as built:** This prototype used a four-pin DHT11 without an added external DATA pull-up resistor; VCC connects to 5 V, DATA to D2 and GND to ground, while the unused pin is left open. This reflects the assembled prototype, rather than a universal recommendation. For reliable operation of a bare DHT11 in other builds, a pull-up between DATA and VCC may be necessary depending on the sensor, cable length and circuit implementation.
+
 ## Hardware prototype
 
 <p align="center"><img src="assets/hardware%20prototype.jpg" alt="Physical Arduino sensor prototype on a breadboard" width="48%"></p>
